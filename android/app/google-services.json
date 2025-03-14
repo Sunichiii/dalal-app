@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "917571064627",
+    "project_id": "groupie-v2",
+    "storage_bucket": "groupie-v2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917571064627:android:c17207cc5cf78de4ab6446",
+        "android_client_info": {
+          "package_name": "com.example.groupie_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcRAmvv1kDJdoHKoiE3IsEYVvX84DUnQw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
