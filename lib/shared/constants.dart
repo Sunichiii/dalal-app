@@ -9,5 +9,5 @@ class Constants{
 
 
 
-  final primaryColor = Color(0xffee7b64);
+  final Color primaryColor = Color(0xFF008080);
 }

@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 const textInputDecoration = InputDecoration(
   labelStyle: TextStyle(color: Colors.black),
   focusedBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Color(0xffee7b64), width: 2),
+    borderSide: BorderSide(color: Color(0xFF008080), width: 2), // Teal
   ),
   enabledBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Color(0xffee7b64), width: 2),
+    borderSide: BorderSide(color: Color(0xFF20B2AA), width: 2), // Light Teal
   ),
   errorBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Color(0xffee7b64), width: 2),
+    borderSide: BorderSide(color: Color(0xFF005F5F), width: 2), // Dark Teal
   ),
 );
+
 
 void nextScreen(context, page) {
   Navigator.push(context, MaterialPageRoute(builder: (context) => page));

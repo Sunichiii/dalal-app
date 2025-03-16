@@ -1,15 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:groupie_v2/helper/helper_function.dart';
-import 'package:groupie_v2/pages/auth/login_page.dart';
+import 'package:groupie_v2/pages/auth/login/login/login_bloc.dart';
+import 'package:groupie_v2/pages/auth/login/login_page.dart';
+import 'package:groupie_v2/pages/auth/register/register_bloc.dart';
 import 'package:groupie_v2/pages/home_page.dart';
+import 'package:groupie_v2/services/auth_services.dart';
 import 'package:groupie_v2/shared/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
-    //run the initialization for web
+    // Run Firebase initialization for web
     await Firebase.initializeApp(
       options: FirebaseOptions(
         apiKey: Constants.apiKey,
@@ -33,7 +37,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   bool _isSignedIn = false;
 
   @override
@@ -41,27 +44,36 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     getUserLoggedInStatus();
   }
-  getUserLoggedInStatus() async{
-    await HelperFunctions.getUserLoggedInStatus().then((value){
-      if(value!= null){
-          setState(() {
-            _isSignedIn = value;
 
-          });
+  getUserLoggedInStatus() async {
+    await HelperFunctions.getUserLoggedInStatus().then((value) {
+      if (value != null) {
+        setState(() {
+          _isSignedIn = value;
+        });
       }
     });
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => RegisterBloc(authService: AuthService()),
+        ),
+        BlocProvider(
+          create: (context) => LoginBloc(authService: AuthService()),
+        ),
+      ],
+      child: MaterialApp(
         theme: ThemeData(
           primaryColor: Constants().primaryColor,
           scaffoldBackgroundColor: Colors.white,
         ),
         debugShowCheckedModeBanner: false,
-        home: _isSignedIn ? HomePage(): LoginPage());
+        home: _isSignedIn ? HomePage() : LoginPage(),
+      ),
+    );
   }
 }

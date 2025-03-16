@@ -5,21 +5,50 @@ import 'package:groupie_v2/services/database_service.dart';
 class AuthService {
   final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
 
+  //Login with email and password
   // Register user with email and password
-  Future<Object?> registerUserWithEmailAndPassword(String fullName, String email, String password) async {
+  Future<Object?> loginWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       // Create user
-      UserCredential userCredential = await firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await firebaseAuth
+          .signInWithEmailAndPassword(email: email, password: password);
 
       User user = userCredential.user!;
 
       if (user != null) {
-        await DatabaseService(uid: user.uid).updateUserData(fullName, email);
         return true;
+      } else {
+        return false; // User is null for some reason
+      }
+    } on FirebaseAuthException catch (e) {
+      // Handle specific FirebaseAuthException errors
+      return e.message;
+    } catch (e) {
+      // Handle any other errors
+      print('Unexpected error: $e');
+      return false;
+    }
+  }
 
+  // Register user with email and password
+  Future<Object?> registerUserWithEmailAndPassword(
+    String fullName,
+    String email,
+    String password,
+  ) async {
+    try {
+      // Create user
+      UserCredential userCredential = await firebaseAuth
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      User user = userCredential.user!;
+
+      if (user != null) {
+        await DatabaseService(uid: user.uid).savingUserData(fullName, email);
+        return true;
       } else {
         return false; // User is null for some reason
       }
