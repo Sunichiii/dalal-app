@@ -26,7 +26,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
           uid: FirebaseAuth.instance.currentUser!.uid,
         ).gettingUserData(event.email);
 
-        // Save login status
+        // Save bloc status
         await HelperFunctions.saveUserLoggedInStatus(true);
         await HelperFunctions.saveUserEmailSF(event.email);
         await HelperFunctions.saveUserNameSF(snapshot.docs[0]['fullName']);

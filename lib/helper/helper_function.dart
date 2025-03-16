@@ -19,8 +19,11 @@ class HelperFunctions {
 
   static Future<bool> saveUserEmailSF(String userEmail) async {
     SharedPreferences sf = await SharedPreferences.getInstance();
-    return await sf.setString(userEmailKey, userEmail);  // Changed setBool to setString
+    bool isSaved = await sf.setString(userEmailKey, userEmail);
+    print("Saved email: $userEmail - Success: $isSaved");
+    return isSaved;
   }
+
 
   // Getting data from SharedPreferences
   static Future<bool?> getUserLoggedInStatus() async {
@@ -35,6 +38,9 @@ class HelperFunctions {
 
   static Future<String?> getUserEmailSF() async {
     SharedPreferences sf = await SharedPreferences.getInstance();
-    return sf.getString(userEmailKey);  // Fetching the user email
+    String? email = sf.getString(userEmailKey);
+    print("Retrieved email: $email");
+    return email;
   }
+
 }
