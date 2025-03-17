@@ -31,9 +31,9 @@ class _GroupInfoState extends State<GroupInfo> {
   }
 
   void _getGroupMembers() {
-    DatabaseService(uid: FirebaseAuth.instance.currentUser!.uid)
-        .getGroupMembers(widget.groupId)
-        .then((stream) {
+    DatabaseService(
+      uid: FirebaseAuth.instance.currentUser!.uid,
+    ).getGroupMembers(widget.groupId).then((stream) {
       setState(() {
         membersStream = stream;
       });
@@ -54,24 +54,30 @@ class _GroupInfoState extends State<GroupInfo> {
     showDialog(
       barrierDismissible: false,
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Exit"),
-        content: const Text("Are you sure you want to exit the group?"),
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.cancel, color: Colors.red),
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Exit"),
+            content: const Text("Are you sure you want to exit the group?"),
+            actions: [
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.cancel, color: Colors.red),
+              ),
+              IconButton(
+                onPressed: () async {
+                  await DatabaseService(
+                    uid: FirebaseAuth.instance.currentUser!.uid,
+                  ).toggleGroupJoin(
+                    widget.groupId,
+                    getName(widget.adminName),
+                    widget.groupName,
+                  );
+                  nextScreenReplaced(context, const HomePage());
+                },
+                icon: const Icon(Icons.done, color: Colors.green),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () async {
-              await DatabaseService(uid: FirebaseAuth.instance.currentUser!.uid)
-                  .toggleGroupJoin(widget.groupId, getName(widget.adminName), widget.groupName);
-              nextScreenReplaced(context, const HomePage());
-            },
-            icon: const Icon(Icons.done, color: Colors.green),
-          ),
-        ],
-      ),
     );
   }
 
@@ -80,7 +86,11 @@ class _GroupInfoState extends State<GroupInfo> {
       stream: membersStream,
       builder: (context, AsyncSnapshot snapshot) {
         if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator(color: Theme.of(context).primaryColor));
+          return Center(
+            child: CircularProgressIndicator(
+              color: Theme.of(context).primaryColor,
+            ),
+          );
         }
 
         List<dynamic>? members = snapshot.data['members'];
@@ -101,7 +111,11 @@ class _GroupInfoState extends State<GroupInfo> {
                   backgroundColor: Theme.of(context).primaryColor,
                   child: Text(
                     getName(member).substring(0, 1).toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 title: Text(getName(member)),
@@ -123,7 +137,10 @@ class _GroupInfoState extends State<GroupInfo> {
         backgroundColor: Theme.of(context).primaryColor,
         title: const Text("Group Info"),
         actions: [
-          IconButton(onPressed: _exitGroup, icon: const Icon(Icons.exit_to_app)),
+          IconButton(
+            onPressed: _exitGroup,
+            icon: const Icon(Icons.exit_to_app),
+          ),
         ],
       ),
       body: Padding(
@@ -143,14 +160,20 @@ class _GroupInfoState extends State<GroupInfo> {
                     backgroundColor: Theme.of(context).primaryColor,
                     child: Text(
                       widget.groupName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 20),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Group: ${widget.groupName}", style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(
+                        "Group: ${widget.groupName}",
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 5),
                       Text("Admin: ${getName(widget.adminName)}"),
                     ],
