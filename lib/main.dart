@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -6,14 +7,15 @@ import 'package:groupie_v2/helper/helper_function.dart';
 import 'package:groupie_v2/pages/auth/login/bloc/login_bloc.dart';
 import 'package:groupie_v2/pages/auth/login/login_page.dart';
 import 'package:groupie_v2/pages/auth/register/bloc/register_bloc.dart';
-import 'package:groupie_v2/pages/home_page.dart';
+import 'package:groupie_v2/pages/home/bloc/home_bloc.dart';
+import 'package:groupie_v2/pages/home/bloc/home_event.dart';
+import 'package:groupie_v2/pages/home/home_page.dart';
 import 'package:groupie_v2/services/auth_services.dart';
 import 'package:groupie_v2/shared/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
-    // Run Firebase initialization for web
     await Firebase.initializeApp(
       options: FirebaseOptions(
         apiKey: Constants.apiKey,
@@ -38,6 +40,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isSignedIn = false;
+  String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
   @override
   void initState() {
@@ -59,12 +62,9 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (context) => RegisterBloc(authService: AuthService()),
-        ),
-        BlocProvider(
-          create: (context) => LoginBloc(authService: AuthService()),
-        ),
+        BlocProvider(create: (context) => RegisterBloc(authService: AuthService())),
+        BlocProvider(create: (context) => LoginBloc(authService: AuthService())),
+      //  BlocProvider(create: (context) => HomeBloc(uid: userId)..add(FetchGroups())),
       ],
       child: MaterialApp(
         theme: ThemeData(

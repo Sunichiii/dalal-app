@@ -1,0 +1,168 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../services/database_service.dart';
+import '../../widgets/widgets.dart';
+import '../home/home_page.dart';
+
+class GroupInfo extends StatefulWidget {
+  final String groupId;
+  final String groupName;
+  final String adminName;
+
+  const GroupInfo({
+    Key? key,
+    required this.adminName,
+    required this.groupName,
+    required this.groupId,
+  }) : super(key: key);
+
+  @override
+  State<GroupInfo> createState() => _GroupInfoState();
+}
+
+class _GroupInfoState extends State<GroupInfo> {
+  Stream? membersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _getGroupMembers();
+  }
+
+  void _getGroupMembers() {
+    DatabaseService(uid: FirebaseAuth.instance.currentUser!.uid)
+        .getGroupMembers(widget.groupId)
+        .then((stream) {
+      setState(() {
+        membersStream = stream;
+      });
+    });
+  }
+
+  String getName(String member) {
+    if (member.isEmpty || !member.contains("_")) return "Unknown";
+    return member.substring(member.indexOf("_") + 1);
+  }
+
+  String getId(String member) {
+    if (member.isEmpty || !member.contains("_")) return "Unknown ID";
+    return member.substring(0, member.indexOf("_"));
+  }
+
+  void _exitGroup() {
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Exit"),
+        content: const Text("Are you sure you want to exit the group?"),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.cancel, color: Colors.red),
+          ),
+          IconButton(
+            onPressed: () async {
+              await DatabaseService(uid: FirebaseAuth.instance.currentUser!.uid)
+                  .toggleGroupJoin(widget.groupId, getName(widget.adminName), widget.groupName);
+              nextScreenReplaced(context, const HomePage());
+            },
+            icon: const Icon(Icons.done, color: Colors.green),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberList() {
+    return StreamBuilder(
+      stream: membersStream,
+      builder: (context, AsyncSnapshot snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator(color: Theme.of(context).primaryColor));
+        }
+
+        List<dynamic>? members = snapshot.data['members'];
+        if (members == null || members.isEmpty) {
+          return const Center(child: Text("NO MEMBERS"));
+        }
+
+        return ListView.builder(
+          itemCount: members.length,
+          shrinkWrap: true,
+          itemBuilder: (context, index) {
+            String member = members[index];
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+              child: ListTile(
+                leading: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: Text(
+                    getName(member).substring(0, 1).toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                title: Text(getName(member)),
+                subtitle: Text(getId(member)),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text("Group Info"),
+        actions: [
+          IconButton(onPressed: _exitGroup, icon: const Icon(Icons.exit_to_app)),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: Theme.of(context).primaryColor.withOpacity(0.2),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Theme.of(context).primaryColor,
+                    child: Text(
+                      widget.groupName.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Group: ${widget.groupName}", style: const TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 5),
+                      Text("Admin: ${getName(widget.adminName)}"),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(child: _buildMemberList()),
+          ],
+        ),
+      ),
+    );
+  }
+}

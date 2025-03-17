@@ -5,7 +5,7 @@ import 'package:groupie_v2/pages/auth/login/login_page.dart';
 import 'package:groupie_v2/pages/auth/register/bloc/register_bloc.dart';
 import 'package:groupie_v2/pages/auth/register/bloc/register_event.dart';
 import 'package:groupie_v2/pages/auth/register/bloc/register_state.dart';
-import 'package:groupie_v2/pages/home_page.dart';
+import 'package:groupie_v2/pages/home/home_page.dart';
 import '../../../widgets/widgets.dart';
 
 class RegisterPage extends StatefulWidget {

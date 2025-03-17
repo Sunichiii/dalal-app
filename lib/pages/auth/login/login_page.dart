@@ -8,7 +8,7 @@ import 'package:groupie_v2/services/auth_services.dart';
 import 'package:groupie_v2/services/database_service.dart';
 import 'package:groupie_v2/widgets/widgets.dart';
 
-import '../../home_page.dart';
+import '../../home/home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
