@@ -7,10 +7,10 @@ import 'package:groupie_v2/helper/helper_function.dart';
 import 'package:groupie_v2/pages/auth/login/bloc/login_bloc.dart';
 import 'package:groupie_v2/pages/auth/login/login_page.dart';
 import 'package:groupie_v2/pages/auth/register/bloc/register_bloc.dart';
-import 'package:groupie_v2/pages/home/bloc/home_bloc.dart';
-import 'package:groupie_v2/pages/home/bloc/home_event.dart';
+import 'package:groupie_v2/pages/chat/bloc/chat_bloc.dart';
 import 'package:groupie_v2/pages/home/home_page.dart';
 import 'package:groupie_v2/services/auth_services.dart';
+import 'package:groupie_v2/services/database_service.dart';
 import 'package:groupie_v2/shared/constants.dart';
 
 void main() async {
@@ -64,6 +64,7 @@ class _MyAppState extends State<MyApp> {
       providers: [
         BlocProvider(create: (context) => RegisterBloc(authService: AuthService())),
         BlocProvider(create: (context) => LoginBloc(authService: AuthService())),
+        BlocProvider(create: (context) => ChatBloc(databaseService: DatabaseService())),
       //  BlocProvider(create: (context) => HomeBloc(uid: userId)..add(FetchGroups())),
       ],
       child: MaterialApp(

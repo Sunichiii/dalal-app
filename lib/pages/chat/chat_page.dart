@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../services/database_service.dart';
+import 'package:intl/intl.dart';
 import '../../widgets/message_tile.dart';
 import '../../widgets/widgets.dart';
 import '../group info/group_info.dart';
+import 'bloc/chat_bloc.dart';
+import 'bloc/chat_event.dart';
+import 'bloc/chat_state.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -22,28 +26,15 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  Stream<QuerySnapshot>? chats;
-  TextEditingController messageController = TextEditingController();
-  FocusNode messageFocusNode = FocusNode(); // ✅ Ensures keyboard opens
+  final TextEditingController messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  FocusNode messageFocusNode = FocusNode();
   String admin = "";
 
   @override
   void initState() {
-    getChatandAdmin();
     super.initState();
-  }
-
-  getChatandAdmin() {
-    DatabaseService().getChats(widget.groupId).then((val) {
-      setState(() {
-        chats = val;
-      });
-    });
-    DatabaseService().getGroupAdmin(widget.groupId).then((val) {
-      setState(() {
-        admin = val;
-      });
-    });
+    BlocProvider.of<ChatBloc>(context).add(LoadChats(groupId: widget.groupId));
   }
 
   @override
@@ -51,9 +42,9 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        elevation: 0,
-        title: Text(widget.groupName),
+        elevation: 4,
         backgroundColor: Theme.of(context).primaryColor,
+        title: Text(widget.groupName, style: const TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             onPressed: () {
@@ -66,7 +57,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               );
             },
-            icon: const Icon(Icons.info),
+            icon: const Icon(Icons.info, color: Colors.white),
           ),
         ],
       ),
@@ -80,23 +71,48 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget chatMessages() {
-    return StreamBuilder(
-      stream: chats,
-      builder: (context, AsyncSnapshot snapshot) {
-        return snapshot.hasData
-            ? ListView.builder(
-          itemCount: snapshot.data.docs.length,
-          reverse: true, // ✅ Latest messages show at bottom
-          itemBuilder: (context, index) {
-            return MessageTile(
-              message: snapshot.data.docs[index]['message'],
-              sender: snapshot.data.docs[index]['sender'],
-              sentByMe:
-              widget.userName == snapshot.data.docs[index]['sender'],
-            );
-          },
-        )
-            : Container();
+    return BlocBuilder<ChatBloc, ChatState>(
+      builder: (context, state) {
+        if (state is ChatLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is ChatLoaded) {
+          return StreamBuilder(
+            stream: state.chats,
+            builder: (context, AsyncSnapshot snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+              });
+
+              return ListView.builder(
+                controller: _scrollController,
+                itemCount: snapshot.data.docs.length,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                itemBuilder: (context, index) {
+                  var messageData = snapshot.data.docs[index];
+                  DateTime messageDateTime = DateTime.fromMillisecondsSinceEpoch(messageData['time']);
+                  String formattedTime = DateFormat('hh:mm a').format(messageDateTime);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MessageTile(
+                        message: messageData['message'],
+                        sender: messageData['sender'],
+                        sentByMe: widget.userName == messageData['sender'],
+                        time: formattedTime,
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
+        } else if (state is ChatError) {
+          return Center(child: Text(state.message, style: TextStyle(color: Colors.red)));
+        }
+        return Container();
       },
     );
   }
@@ -104,55 +120,53 @@ class _ChatPageState extends State<ChatPage> {
   Widget messageInputField() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-      color: Colors.grey[800],
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(15),
+          topRight: Radius.circular(15),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+      ),
       child: Row(
         children: [
           Expanded(
-            child: TextFormField(
-              controller: messageController,
-              focusNode: messageFocusNode, // ✅ Ensures keyboard opens
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: "Send a message...",
-                hintStyle: TextStyle(color: Colors.white70),
-                border: InputBorder.none,
+            child: Container(
+              decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(20)),
+              child: TextFormField(
+                controller: messageController,
+                focusNode: messageFocusNode,
+                style: const TextStyle(color: Colors.black),
+                decoration: const InputDecoration(
+                  hintText: "Type a message...",
+                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  border: InputBorder.none,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 10),
           GestureDetector(
             onTap: () {
-              sendMessage();
-              messageFocusNode.requestFocus(); // ✅ Keeps keyboard open after sending message
+              if (messageController.text.isNotEmpty) {
+                BlocProvider.of<ChatBloc>(context).add(
+                  SendMessage(groupId: widget.groupId, userName: widget.userName, message: messageController.text),
+                );
+                messageController.clear();
+                messageFocusNode.requestFocus();
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: messageController.text.isNotEmpty
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey, // ✅ Disabled send button effect
+                color: messageController.text.isNotEmpty ? Theme.of(context).primaryColor : Colors.grey,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.send, color: Colors.white),
+              child: const Icon(Icons.send_rounded, color: Colors.white),
             ),
           ),
         ],
       ),
     );
-  }
-
-  sendMessage() {
-    if (messageController.text.isNotEmpty) {
-      Map<String, dynamic> chatMessageMap = {
-        "message": messageController.text,
-        "sender": widget.userName,
-        "time": DateTime.now().millisecondsSinceEpoch,
-      };
-
-      DatabaseService().sendMessage(widget.groupId, chatMessageMap);
-      setState(() {
-        messageController.clear();
-      });
-    }
   }
 }
