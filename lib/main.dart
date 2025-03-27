@@ -3,15 +3,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:groupie_v2/helper/helper_function.dart';
-import 'package:groupie_v2/pages/auth/login/bloc/login_bloc.dart';
-import 'package:groupie_v2/pages/auth/login/login_page.dart';
-import 'package:groupie_v2/pages/auth/register/bloc/register_bloc.dart';
-import 'package:groupie_v2/pages/chat/bloc/chat_bloc.dart';
-import 'package:groupie_v2/pages/home/home_page.dart';
-import 'package:groupie_v2/services/auth_services.dart';
-import 'package:groupie_v2/services/database_service.dart';
-import 'package:groupie_v2/shared/constants.dart';
+import 'package:groupie_v2/data/sources/helper_function.dart';
+import 'package:groupie_v2/presentation/screens/chat/bloc/chat_bloc.dart';
+import 'package:groupie_v2/presentation/screens/home/home_page.dart';
+import 'core/services/auth_services.dart';
+import 'core/services/database_service.dart';
+import 'core/shared/constants.dart';
+import 'logic/auth/login/bloc/login_bloc.dart';
+import 'logic/auth/login/login_page.dart';
+import 'logic/auth/register/bloc/register_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
