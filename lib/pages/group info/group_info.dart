@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../services/database_service.dart';
 import '../../widgets/widgets.dart';
+import '../group_request/group_request_page.dart';
 import '../home/home_page.dart';
 
 class GroupInfo extends StatefulWidget {
@@ -11,44 +12,48 @@ class GroupInfo extends StatefulWidget {
   final String adminName;
 
   const GroupInfo({
-    Key? key,
+    super.key,
     required this.adminName,
     required this.groupName,
     required this.groupId,
-  }) : super(key: key);
+  });
 
   @override
   State<GroupInfo> createState() => _GroupInfoState();
 }
 
 class _GroupInfoState extends State<GroupInfo> {
+  final currentUserId = FirebaseAuth.instance.currentUser!.uid;
   Stream? membersStream;
+  bool isCurrentUserAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _getGroupMembers();
+    _checkIfCurrentUserIsAdmin(); // admin check happens early
   }
 
-  void _getGroupMembers() {
-    DatabaseService(
-      uid: FirebaseAuth.instance.currentUser!.uid,
-    ).getGroupMembers(widget.groupId).then((stream) {
-      setState(() {
-        membersStream = stream;
-      });
+  void _getGroupMembers() async {
+    final stream =
+    DatabaseService(uid: currentUserId).getGroupMembers(widget.groupId);
+    setState(() {
+      membersStream = stream;
     });
   }
 
-  String getName(String member) {
-    if (member.isEmpty || !member.contains("_")) return "Unknown";
-    return member.substring(member.indexOf("_") + 1);
+  void _checkIfCurrentUserIsAdmin() {
+    final adminId = getId(widget.adminName);
+    setState(() {
+      isCurrentUserAdmin = (currentUserId == adminId);
+    });
   }
 
-  String getId(String member) {
-    if (member.isEmpty || !member.contains("_")) return "Unknown ID";
-    return member.substring(0, member.indexOf("_"));
-  }
+  String getName(String member) =>
+      member.contains('_') ? member.split('_')[1] : "Unknown";
+
+  String getId(String member) =>
+      member.contains('_') ? member.split('_')[0] : "Unknown ID";
 
   void _exitGroup() {
     showDialog(
@@ -64,14 +69,17 @@ class _GroupInfoState extends State<GroupInfo> {
           ),
           IconButton(
             onPressed: () async {
-              await DatabaseService(
-                uid: FirebaseAuth.instance.currentUser!.uid,
-              ).toggleGroupJoin(
+              await DatabaseService(uid: currentUserId).toggleGroupJoin(
                 widget.groupId,
                 getName(widget.adminName),
                 widget.groupName,
               );
-              nextScreenReplaced(context, const HomePage());
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("You have left the group")),
+                );
+                nextScreenReplaced(context, const HomePage());
+              }
             },
             icon: const Icon(Icons.done, color: Colors.green),
           ),
@@ -80,48 +88,74 @@ class _GroupInfoState extends State<GroupInfo> {
     );
   }
 
-  Widget _buildMemberList() {
-    return StreamBuilder(
-      stream: membersStream,
-      builder: (context, AsyncSnapshot snapshot) {
-        if (!snapshot.hasData) {
-          return Center(
-            child: CircularProgressIndicator(
-              color: Theme.of(context).primaryColor,
-            ),
-          );
-        }
-
-        List<dynamic>? members = snapshot.data['members'];
-        if (members == null || members.isEmpty) {
-          return const Center(child: Text("NO MEMBERS"));
-        }
-
-        return ListView.builder(
-          itemCount: members.length,
-          shrinkWrap: true,
-          itemBuilder: (context, index) {
-            String member = members[index];
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
-              child: ListTile(
-                leading: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Theme.of(context).primaryColor,
-                  child: Text(
-                    getName(member).substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(CupertinoIcons.back, color: Colors.white),
+        onPressed: () {
+          nextScreenReplaced(context, const HomePage());
+        },
+      ),
+      centerTitle: true,
+      elevation: 0,
+      backgroundColor: Theme.of(context).primaryColor,
+      title: const Text("GROUP INFO", style: TextStyle(color: Colors.white)),
+      actions: [
+        if (isCurrentUserAdmin)
+          IconButton(
+            icon: const Icon(Icons.group_add, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GroupRequestsPage(
+                    groupId: widget.groupId,
+                    groupName: widget.groupName,
                   ),
                 ),
-                title: Text(getName(member)),
-                subtitle: Text(getId(member)),
+              );
+            },
+          ),
+        IconButton(
+          onPressed: _exitGroup,
+          icon: const Icon(Icons.exit_to_app, color: Colors.white),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMemberList(Map<String, dynamic> data) {
+    List<dynamic> members = data['members'] ?? [];
+
+    // Remove admin from member list
+    members.removeWhere((member) => member == widget.adminName);
+
+    if (members.isEmpty) {
+      return const Center(child: Text("NO MEMBERS"));
+    }
+
+    return ListView.builder(
+      itemCount: members.length,
+      itemBuilder: (context, index) {
+        String member = members[index];
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+          child: ListTile(
+            leading: CircleAvatar(
+              radius: 30,
+              backgroundColor: Theme.of(context).primaryColor,
+              child: Text(
+                getName(member).substring(0, 1).toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            );
-          },
+            ),
+            title: Text(getName(member)),
+            subtitle: Text(getId(member)),
+          ),
         );
       },
     );
@@ -129,74 +163,80 @@ class _GroupInfoState extends State<GroupInfo> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        nextScreenReplaced(context, const HomePage());
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          nextScreenReplaced(context, const HomePage());
+        }
       },
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(CupertinoIcons.back, color: Colors.white),
-            onPressed: () {
-              nextScreenReplaced(context, const HomePage());
-            },
-          ),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Theme.of(context).primaryColor,
-          title: const Text(
-            "GROUP INFO",
-            style: TextStyle(color: Colors.white),
-          ),
-          actions: [
-            IconButton(
-              onPressed: _exitGroup,
-              icon: const Icon(Icons.exit_to_app, color: Colors.white),
-            ),
-          ],
-        ),
+        appBar: _buildAppBar(), //  uses extracted method
         body: Padding(
           padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-                  color: Theme.of(context).primaryColor.withOpacity(0.2),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: Text(
-                        widget.groupName.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
+          child: StreamBuilder(
+            stream: membersStream,
+            builder: (context, AsyncSnapshot snapshot) {
+              if (snapshot.hasError) {
+                return Center(
+                    child: Text("Something went wrong: ${snapshot.error}"));
+              }
+
+              if (!snapshot.hasData ||
+                  snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child:
+                  CircularProgressIndicator(color: Theme.of(context).primaryColor),
+                );
+              }
+
+              final data = snapshot.data?.data();
+              if (data == null) return const Center(child: Text("No data"));
+
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      color: Theme.of(context).primaryColor,
                     ),
-                    const SizedBox(width: 20),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          "Group: ${widget.groupName}",
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          child: Text(
+                            widget.groupName.substring(0, 1).toUpperCase(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 5),
-                        Text("Admin: ${getName(widget.adminName)}"),
+                        const SizedBox(width: 20),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Group: ${widget.groupName}",
+                                style: const TextStyle(fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 5),
+                            Text(
+                              "Admin: ${widget.adminName.contains("_") ? getName(widget.adminName) : widget.adminName}",
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Expanded(child: _buildMemberList()),
-            ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Text("Members",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 10),
+                  Expanded(child: _buildMemberList(data)),
+                ],
+              );
+            },
           ),
         ),
       ),

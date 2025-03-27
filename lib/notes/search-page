@@ -171,7 +171,9 @@ class _SearchPageState extends State<SearchPage> {
       subtitle: Text("Admin: ${getName(admin)}"),
       trailing: InkWell(
         onTap: () async {
-          await DatabaseService().sendJoinRequest(groupId, userName, user!.uid);
+          await DatabaseService(
+            uid: user!.uid,
+          ).toggleGroupJoin(groupId, userName, groupName);
           if (isJoined) {
             setState(() {
               isJoined = !isJoined;
@@ -219,9 +221,8 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Text(
-                    "Request Join?",
+                    "Join Now",
                     style: TextStyle(fontSize: 16, color: Colors.white),
-
                   ),
                 ),
       ),

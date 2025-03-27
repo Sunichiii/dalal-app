@@ -197,8 +197,7 @@ import '../home/home_page.dart';
 class ProfilePage extends StatefulWidget {
   String userName;
   String email;
-  ProfilePage({Key? key, required this.email, required this.userName})
-      : super(key: key);
+  ProfilePage({super.key, required this.email, required this.userName});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
