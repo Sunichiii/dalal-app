@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
 
 class MessageTile extends StatelessWidget {
   final String message;
@@ -22,7 +23,7 @@ class MessageTile extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: sentByMe ? Colors.teal : Colors.grey[700],
+          color: sentByMe ? Constants().primaryColor : Colors.grey[700],
           borderRadius:
               sentByMe
                   ? const BorderRadius.only(

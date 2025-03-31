@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
+import 'package:groupie_v2/core/shared/textstyles.dart';
 import 'package:groupie_v2/data/sources/helper_function.dart';
 import '../../../core/services/auth_services.dart';
 import '../../../core/services/database_service.dart';
@@ -26,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black38,
       body:
           _isLoading
               ? Center(child: CircularProgressIndicator(color: Colors.blue))
@@ -42,27 +45,22 @@ class _LoginPageState extends State<LoginPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: <Widget>[
                         Text(
-                          "Texty",
-                          style: TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          "TEXTY",
+                          style: AppTextStyles.large
                         ),
                         SizedBox(height: 10),
                         Text(
                           "Login now to see what they are talking !",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w400,
-                            fontSize: 15,
-                          ),
+                          style: AppTextStyles.medium
                         ),
                         Image.asset("assets/images/login.png"),
                         TextFormField(
                           decoration: textInputDecoration.copyWith(
                             labelText: "Email",
+                            labelStyle: AppTextStyles.small,
                             prefixIcon: Icon(
                               Icons.email,
-                              color: Theme.of(context).primaryColor,
+                              color: Colors.white,
                             ),
                           ),
                           onChanged: (val) {
@@ -78,6 +76,8 @@ class _LoginPageState extends State<LoginPage> {
                                 ? null
                                 : "Please enter a valid email";
                           },
+                          style: AppTextStyles.small,
+
                         ),
 
                         SizedBox(height: 15),
@@ -85,9 +85,10 @@ class _LoginPageState extends State<LoginPage> {
                           obscureText: true,
                           decoration: textInputDecoration.copyWith(
                             labelText: "Password",
+                            labelStyle: AppTextStyles.small,
                             prefixIcon: Icon(
                               Icons.lock,
-                              color: Theme.of(context).primaryColor,
+                              color: Colors.white,
                             ),
                           ),
                           onChanged: (val) {
@@ -102,13 +103,15 @@ class _LoginPageState extends State<LoginPage> {
                               return null;
                             }
                           },
+                          style: AppTextStyles.small,
                         ),
                         SizedBox(height: 20),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
+                              backgroundColor: Constants().primaryColor,
+                              side: BorderSide(color: Colors.white, width: 2),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -119,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
                             },
                             child: Text(
                               "Sign In",
-                              style: TextStyle(color: Colors.white),
+                              style: AppTextStyles.small
                             ),
                           ),
                         ),
@@ -128,14 +131,11 @@ class _LoginPageState extends State<LoginPage> {
                         Text.rich(
                           TextSpan(
                             text: "Don't have an account? ",
-                            style: TextStyle(color: Colors.black, fontSize: 14),
+                            style: AppTextStyles.small,
                             children: <TextSpan>[
                               TextSpan(
                                 text: "Register here",
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  decoration: TextDecoration.underline,
-                                ),
+                                style: AppTextStyles.small,
                                 recognizer:
                                     TapGestureRecognizer()
                                       ..onTap = () {

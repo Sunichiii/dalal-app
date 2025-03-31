@@ -6,8 +6,10 @@ class DatabaseService {
   DatabaseService({this.uid});
 
   // Firebase collections
-  final CollectionReference userCollection = FirebaseFirestore.instance.collection("users");
-  final CollectionReference groupCollection = FirebaseFirestore.instance.collection("groups");
+  final CollectionReference userCollection =
+  FirebaseFirestore.instance.collection("users");
+  final CollectionReference groupCollection =
+  FirebaseFirestore.instance.collection("groups");
 
   // Save user data when account is created
   Future<void> savingUserData(String fullName, String email) async {
@@ -30,7 +32,7 @@ class DatabaseService {
     return userCollection.doc(uid).snapshots();
   }
 
-  // Create a new group and add creator to it
+  // Create a new group
   Future<void> createGroup(String userName, String id, String groupName) async {
     DocumentReference groupRef = await groupCollection.add({
       "groupName": groupName,
@@ -40,7 +42,8 @@ class DatabaseService {
       "groupId": "",
       "recentMessage": "",
       "recentMessageSender": "",
-      "groupRequests": [], //  initialized empty for safety
+      "groupRequests": [],
+      "createdAt": FieldValue.serverTimestamp(),
     });
 
     await groupRef.update({
@@ -62,57 +65,104 @@ class DatabaseService {
         .snapshots();
   }
 
-  // Get group admin's full string (uid_name)
+  // Get group admin
   Future<String> getGroupAdmin(String groupId) async {
     DocumentSnapshot snapshot = await groupCollection.doc(groupId).get();
     return snapshot['admin'];
   }
 
-  // Listen to members and metadata of a group
+  // Get group members stream
   Stream<DocumentSnapshot> getGroupMembers(String groupId) {
     return groupCollection.doc(groupId).snapshots();
   }
 
   // Search for group by name
   Future<QuerySnapshot> searchByName(String groupName) {
-    return groupCollection.where("groupName", isEqualTo: groupName).get();
+    return groupCollection
+        .where("groupName", isEqualTo: groupName)
+        .get();
   }
 
-  // Check if user is already a member of the group
+  // Check if user is joined
   Future<bool> isUserJoined(String groupName, String groupId, String userName) async {
     DocumentSnapshot snapshot = await userCollection.doc(uid).get();
     List<dynamic> groups = snapshot['groups'];
     return groups.contains("${groupId}_$groupName");
   }
 
-  // Toggle join/leave a group (only used after approval)
-  Future<void> toggleGroupJoin(String groupId, String userName, String groupName) async {
-    DocumentReference userRef = userCollection.doc(uid);
-    DocumentReference groupRef = groupCollection.doc(groupId);
+  // Join group (after approval)
+  Future<void> joinGroup(String groupId, String groupName) async {
+    DocumentSnapshot userDoc = await userCollection.doc(uid).get();
+    String userName = userDoc['fullName'] ?? '';
+    String fullUserString = "${uid}_$userName";
 
-    DocumentSnapshot userSnapshot = await userRef.get();
-    List<dynamic> groups = userSnapshot['groups'];
+    await groupCollection.doc(groupId).update({
+      "members": FieldValue.arrayUnion([fullUserString]),
+    });
 
-    if (groups.contains("${groupId}_$groupName")) {
-      // Leave group
-      await userRef.update({
-        "groups": FieldValue.arrayRemove(["${groupId}_$groupName"]),
-      });
-      await groupRef.update({
-        "members": FieldValue.arrayRemove(["${uid}_$userName"]),
-      });
-    } else {
-      // Join group
-      await userRef.update({
-        "groups": FieldValue.arrayUnion(["${groupId}_$groupName"]),
-      });
-      await groupRef.update({
-        "members": FieldValue.arrayUnion(["${uid}_$userName"]),
-      });
-    }
+    await userCollection.doc(uid).update({
+      "groups": FieldValue.arrayUnion(["${groupId}_$groupName"]),
+    });
   }
 
-  // Send a chat message in a group
+  // Leave group with all safety checks
+  Future<void> leaveGroup(String groupId, String groupName) async {
+    final userDoc = await userCollection.doc(uid).get();
+    final userName = userDoc['fullName'] ?? '';
+    final fullUserString = "${uid}_$userName";
+
+    final groupDoc = await groupCollection.doc(groupId).get();
+    final admin = groupDoc['admin'] as String;
+    final isAdmin = admin == fullUserString;
+    final members = List.from(groupDoc['members'] ?? []);
+    final isLastMember = members.length == 1 && members.contains(fullUserString);
+
+    if (isLastMember) {
+      await _deleteEntireGroup(groupId, groupName);
+    } else if (isAdmin) {
+      throw Exception("Cannot leave as admin. Transfer admin rights first.");
+    } else {
+      await groupCollection.doc(groupId).update({
+        "members": FieldValue.arrayRemove([fullUserString]),
+      });
+    }
+
+    await userCollection.doc(uid).update({
+      "groups": FieldValue.arrayRemove(["${groupId}_$groupName"]),
+    });
+  }
+
+  // Delete entire group and clean up
+  Future<void> _deleteEntireGroup(String groupId, String groupName) async {
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+
+    // Delete group document
+    batch.delete(groupCollection.doc(groupId));
+
+    // Delete all messages
+    final messages = await groupCollection.doc(groupId).collection("messages").get();
+    for (var doc in messages.docs) {
+      batch.delete(doc.reference);
+    }
+
+    await batch.commit();
+  }
+
+  // Transfer admin rights
+  Future<void> transferAdminRights({
+    required String groupId,
+    required String newAdminId,
+    required String newAdminName,
+  }) async {
+    final newAdminString = "${newAdminId}_$newAdminName";
+
+    await groupCollection.doc(groupId).update({
+      "admin": newAdminString,
+      "members": FieldValue.arrayUnion([newAdminString]),
+    });
+  }
+
+  // Send message
   Future<void> sendMessage(String groupId, Map<String, dynamic> chatMessageData) async {
     await groupCollection.doc(groupId).collection("messages").add(chatMessageData);
     await groupCollection.doc(groupId).update({
@@ -122,45 +172,49 @@ class DatabaseService {
     });
   }
 
-  // Send join request (only adds if not already requested)
+  // Handle join requests
   Future<void> sendJoinRequest(String groupId, String userName, String userId) async {
-    final groupRef = groupCollection.doc(groupId);
-    final groupDoc = await groupRef.get();
-
-    final data = groupDoc.data() as Map<String, dynamic>?;
-    List<dynamic> currentRequests = [];
-
-    if (data != null && data.containsKey('groupRequests')) {
-      currentRequests = List.from(data['groupRequests']);
-    }
-
-    String requestId = "${userId}_$userName";
-
-    if (!currentRequests.contains(requestId)) {
-      await groupRef.update({
-        "groupRequests": FieldValue.arrayUnion([requestId])
-      });
-    }
+    final requestId = "${userId}_$userName";
+    await groupCollection.doc(groupId).update({
+      "groupRequests": FieldValue.arrayUnion([requestId])
+    });
   }
 
-  //  Admin approves join request
-  Future<void> approveJoinRequest(String groupId, String userId, String userName) async {
-    final userRef = userCollection.doc(userId);
-    final groupRef = groupCollection.doc(groupId);
-
-    final groupDoc = await groupRef.get();
-    final groupName = groupDoc['groupName'];
+  // Approve join request
+  Future<void> approveJoinRequest({
+    required String groupId,
+    required String groupName,
+    required String userId,
+    required String userName,
+    required String assignedName,
+  }) async {
     final fullId = "${userId}_$userName";
 
-    // Add user to group and remove request
-    await groupRef.update({
+    await groupCollection.doc(groupId).update({
       "members": FieldValue.arrayUnion([fullId]),
       "groupRequests": FieldValue.arrayRemove([fullId]),
+      "groupAnonNames": {userId: assignedName},
     });
 
-    // Add group to user's joined list
-    await userRef.update({
+    await userCollection.doc(userId).update({
       "groups": FieldValue.arrayUnion(["${groupId}_$groupName"]),
+    });
+  }
+
+  // Remove member
+  Future<void> removeMemberFromGroup({
+    required String groupId,
+    required String groupName,
+    required String memberId,
+    required String memberName,
+    required String fullMemberString,
+  }) async {
+    await groupCollection.doc(groupId).update({
+      "members": FieldValue.arrayRemove([fullMemberString])
+    });
+
+    await userCollection.doc(memberId).update({
+      "groups": FieldValue.arrayRemove(["${groupId}_$groupName"])
     });
   }
 }

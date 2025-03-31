@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:groupie_v2/core/shared/textstyles.dart';
 import '../../../presentation/screens/home/home_page.dart';
 import '../../../presentation/widgets/widgets.dart';
 import '../login/login_page.dart';
@@ -24,6 +25,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black26,
       body: BlocConsumer<RegisterBloc, RegisterState>(
         listener: (context, state) {
           if (state is RegisterSuccess) {
@@ -53,26 +55,21 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: <Widget>[
                     Text(
                       "Texty",
-                      style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.large
                     ),
                     SizedBox(height: 10),
                     Text(
-                      "Create your account to chat and explore",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w400,
-                        fontSize: 15,
-                      ),
+                      "Create your account to chat and explore!",
+                      style: AppTextStyles.medium
                     ),
                     Image.asset("assets/images/register.png"),
                     TextFormField(
                       decoration: textInputDecoration.copyWith(
                         labelText: "Username",
+                        labelStyle: AppTextStyles.small,
                         prefixIcon: Icon(
                           Icons.person,
-                          color: Theme.of(context).primaryColor,
+                          color: Colors.white,
                         ),
                       ),
                       onChanged: (val) {
@@ -82,14 +79,16 @@ class _RegisterPageState extends State<RegisterPage> {
                       },
                       validator: (val) =>
                       val!.isNotEmpty ? null : "Name cannot be empty",
+                      style: AppTextStyles.small,
                     ),
                     SizedBox(height: 15),
                     TextFormField(
                       decoration: textInputDecoration.copyWith(
                         labelText: "Email",
+                        labelStyle: AppTextStyles.small,
                         prefixIcon: Icon(
                           Icons.email,
-                          color: Theme.of(context).primaryColor,
+                          color: Colors.white,
                         ),
                       ),
                       onChanged: (val) {
@@ -104,15 +103,17 @@ class _RegisterPageState extends State<RegisterPage> {
                             ? null
                             : "Please enter a valid email";
                       },
+                      style: AppTextStyles.small,
                     ),
                     SizedBox(height: 15),
                     TextFormField(
                       obscureText: true,
                       decoration: textInputDecoration.copyWith(
                         labelText: "Password",
+                        labelStyle: AppTextStyles.small,
                         prefixIcon: Icon(
                           Icons.lock,
-                          color: Theme.of(context).primaryColor,
+                          color: Colors.white,
                         ),
                       ),
                       onChanged: (val) {
@@ -127,6 +128,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           return null;
                         }
                       },
+                      style: AppTextStyles.small,
                     ),
                     SizedBox(height: 20),
                     SizedBox(
@@ -153,7 +155,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         },
                         child: Text(
                           "Register",
-                          style: TextStyle(color: Colors.white),
+                          style: AppTextStyles.medium
                         ),
                       ),
                     ),
@@ -161,15 +163,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     Text.rich(
                       TextSpan(
                         text: "Already have an account? ",
-                        style:
-                        TextStyle(color: Colors.black, fontSize: 14),
+                        style: AppTextStyles.small,
                         children: <TextSpan>[
                           TextSpan(
                             text: "Login Now",
-                            style: TextStyle(
-                              color: Colors.black,
-                              decoration: TextDecoration.underline,
-                            ),
+                            style: AppTextStyles.small,
                             recognizer: TapGestureRecognizer()
                               ..onTap = () {
                                 nextScreen(context, LoginPage());

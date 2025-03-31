@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
+
 abstract class ChatState extends Equatable {
   @override
   List<Object?> get props => [];
@@ -12,10 +13,12 @@ class ChatLoading extends ChatState {}
 
 class ChatLoaded extends ChatState {
   final Stream<QuerySnapshot> chats;
-  ChatLoaded({required this.chats});
+  final Map<String, String> anonMap;
+
+  ChatLoaded({required this.anonMap,required this.chats});
 
   @override
-  List<Object?> get props => [chats];
+  List<Object?> get props => [chats, anonMap];
 }
 
 class ChatError extends ChatState {

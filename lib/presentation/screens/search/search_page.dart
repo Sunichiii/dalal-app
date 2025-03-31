@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
+import 'package:groupie_v2/core/shared/textstyles.dart';
 import 'package:groupie_v2/data/sources/helper_function.dart';
 import '../../../core/services/database_service.dart';
 import '../../widgets/widgets.dart';
@@ -50,12 +52,14 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Constants().backGroundColor,
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Theme.of(context).primaryColor,
         title: const Text(
-          "Search Group",
+          "S E A R C H ",
           style: TextStyle(
             fontSize: 27,
             fontWeight: FontWeight.bold,
@@ -65,6 +69,15 @@ class _SearchPageState extends State<SearchPage> {
       ),
       body: Column(
         children: [
+          // Divider below the AppBar
+          const Divider(
+            height: 2,  // Adjust the height to control the space
+            thickness: 1,  // Thickness of the divider line
+            color: Colors.white,  // Color of the divider
+            indent: 0,
+            endIndent: 0,
+          ),
+
           Container(
             color: Theme.of(context).primaryColor,
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -74,25 +87,30 @@ class _SearchPageState extends State<SearchPage> {
                   child: TextField(
                     controller: searchController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: "Search for a group",
-                      hintStyle: TextStyle(color: Colors.white),
-                      border: InputBorder.none,
+                    decoration: InputDecoration(
+                      hintText: "Search for a group...",
+                      hintStyle: AppTextStyles.small,
+                      border: OutlineInputBorder(
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white)
+                      )
                     ),
                   ),
                 ),
+                SizedBox(width: 10),
                 GestureDetector(
                   onTap: () {
                     initiateSearchMethod();
                   },
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.grey,
-                      borderRadius: BorderRadius.circular(40),
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.search, color: Colors.white),
+                    child: const Icon(Icons.search_outlined, color: Colors.white),
                   ),
                 ),
               ],
@@ -112,9 +130,7 @@ class _SearchPageState extends State<SearchPage> {
         isLoading = true;
       });
 
-      await DatabaseService().searchByName(searchController.text).then((
-        snapshot,
-      ) {
+      await DatabaseService().searchByName(searchController.text).then((snapshot) {
         setState(() {
           searchSnapshot = snapshot;
           isLoading = false;
@@ -127,19 +143,19 @@ class _SearchPageState extends State<SearchPage> {
   Widget groupList() {
     return hasUserSearched
         ? searchSnapshot != null && searchSnapshot!.docs.isNotEmpty
-            ? ListView.builder(
-              itemCount: searchSnapshot!.docs.length,
-              shrinkWrap: true,
-              itemBuilder: (context, index) {
-                return groupTile(
-                  userName,
-                  searchSnapshot!.docs[index]['groupId'],
-                  searchSnapshot!.docs[index]['groupName'],
-                  searchSnapshot!.docs[index]['admin'],
-                );
-              },
-            )
-            : const Center(child: Text("No Groups Found"))
+        ? ListView.builder(
+      itemCount: searchSnapshot!.docs.length,
+      shrinkWrap: true,
+      itemBuilder: (context, index) {
+        return groupTile(
+          userName,
+          searchSnapshot!.docs[index]['groupId'],
+          searchSnapshot!.docs[index]['groupName'],
+          searchSnapshot!.docs[index]['admin'],
+        );
+      },
+    )
+        : const Center(child: Text("No Groups Found"))
         : Container();
   }
 
@@ -154,21 +170,24 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget groupTile(
-    String userName,
-    String groupId,
-    String groupName,
-    String admin,
-  ) {
+      String userName,
+      String groupId,
+      String groupName,
+      String admin,
+      ) {
     joinedOrNot(userName, groupId, groupName, admin);
     return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      title: Text(groupName, style: TextStyle(fontWeight: FontWeight.w600)),
+      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+      title: Text(groupName, style: AppTextStyles.medium),
       leading: CircleAvatar(
         radius: 30,
         backgroundColor: Theme.of(context).primaryColor,
-        child: Text(groupName.substring(0, 1).toUpperCase()),
+        child: Text(
+          groupName.substring(0, 1).toUpperCase(),
+          style: AppTextStyles.medium,
+        ),
       ),
-      subtitle: Text("Admin: ${getName(admin)}"),
+      // subtitle: Text("Admin: ${getName(admin)}"),
       trailing: InkWell(
         onTap: () async {
           await DatabaseService().sendJoinRequest(groupId, userName, user!.uid);
@@ -194,36 +213,34 @@ class _SearchPageState extends State<SearchPage> {
           } else {
             setState(() {
               isJoined = !isJoined;
-              showSnackbar(context, Colors.blue, "Sent a request to $groupName");
+              showSnackbar(context, Constants().primaryColor, "Sent a request to $groupName");
             });
           }
         },
-        child:
-            isJoined
-                ? Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.black,
-                    border: Border.all(color: Colors.white),
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Text(
-                    "Joined",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                )
-                : Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Theme.of(context).primaryColor,
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Text(
-                    "Request Join?",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-
-                  ),
-                ),
+        child: isJoined
+            ? Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.black,
+            border: Border.all(color: Colors.white),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Text(
+            "Joined",
+            style: TextStyle(fontSize: 16, color: Colors.white),
+          ),
+        )
+            : Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: Theme.of(context).primaryColor,
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Text(
+            "Request Join?",
+            style: TextStyle(fontSize: 16, color: Colors.white),
+          ),
+        ),
       ),
     );
   }

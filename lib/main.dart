@@ -69,8 +69,9 @@ class _MyAppState extends State<MyApp> {
       ],
       child: MaterialApp(
         theme: ThemeData(
+          fontFamily: 'Nunito',
           primaryColor: Constants().primaryColor,
-          scaffoldBackgroundColor: Colors.white,
+          scaffoldBackgroundColor: Colors.black,
         ),
         debugShowCheckedModeBanner: false,
         home: _isSignedIn ? HomePage() : LoginPage(),

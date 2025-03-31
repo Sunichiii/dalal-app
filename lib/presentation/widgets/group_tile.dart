@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
+import 'package:groupie_v2/core/shared/textstyles.dart';
 import 'package:groupie_v2/presentation/widgets/widgets.dart';
 import '../screens/chat/chat_page.dart';
-
 
 class GroupTile extends StatefulWidget {
   final String userName;
@@ -34,27 +35,41 @@ class _GroupTileState extends State<GroupTile> {
         );
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+        margin: const EdgeInsets.all(10.0),
+        decoration: BoxDecoration(
+          color: Constants().primaryColor, // Light background for each tile
+          borderRadius: BorderRadius.circular(10),
+        ),
         child: ListTile(
+          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           leading: CircleAvatar(
             radius: 30,
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: Constants().secondaryColor,
             child: Text(
-              widget.groupName.substring(0, 1).toUpperCase(),
+              widget.groupName.substring(0, 1).toUpperCase(), // First letter of the group name
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
               ),
             ),
           ),
           title: Text(
-            widget.groupName,
-            style: TextStyle(fontWeight: FontWeight.bold),
+            widget.groupName.toUpperCase(), // Uppercase group name
+            style: AppTextStyles.medium
           ),
           subtitle: Text(
-            "Join the conversation as ${widget.userName}",
-            style: TextStyle(fontSize: 13),
+            "Joined the conversation as ${widget.userName}",
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[600],
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Colors.white,
           ),
         ),
       ),

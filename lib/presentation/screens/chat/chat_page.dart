@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/database_service.dart';
 import '../../widgets/message_tile.dart';
 import '../../widgets/widgets.dart';
@@ -29,7 +31,6 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   FocusNode messageFocusNode = FocusNode();
-  String admin = "";
 
   @override
   void initState() {
@@ -41,8 +42,9 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         centerTitle: true,
         elevation: 4,
         backgroundColor: theme.primaryColor,
@@ -55,14 +57,15 @@ class _ChatPageState extends State<ChatPage> {
         ),
         actions: [
           IconButton(
-            onPressed: () async{
-              String fetchedAdmin = await DatabaseService().getGroupAdmin(widget.groupId); //changes made here
+            onPressed: () async {
+              String fetchedAdmin =
+              await DatabaseService().getGroupAdmin(widget.groupId);
               nextScreen(
                 context,
                 GroupInfo(
                   groupId: widget.groupId,
                   groupName: widget.groupName,
-                  adminName: fetchedAdmin, //changes made here so admin name appeared need to revisit this
+                  adminName: fetchedAdmin,
                 ),
               );
             },
@@ -100,23 +103,29 @@ class _ChatPageState extends State<ChatPage> {
                 itemCount: snapshot.data.docs.length,
                 padding: const EdgeInsets.symmetric(
                   vertical: 5,
-                  horizontal: 5,
+                  horizontal: 1,
                 ),
                 itemBuilder: (context, index) {
                   var messageData = snapshot.data.docs[index];
+                  String sender = messageData['sender'];
+                  String uid = sender.contains('_') ? sender.split('_')[0] : sender;
+                  String displayName = state.anonMap[uid] ?? "Anonymous";
+
+                  String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+                  bool sentByMe = sender.startsWith(currentUserId);
+
                   DateTime messageDateTime =
-                      DateTime.fromMillisecondsSinceEpoch(messageData['time']);
-                  String formattedTime = DateFormat(
-                    'hh:mm a',
-                  ).format(messageDateTime);
+                  DateTime.fromMillisecondsSinceEpoch(messageData['time']);
+                  String formattedTime =
+                  DateFormat('hh:mm a').format(messageDateTime);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       MessageTile(
                         message: messageData['message'],
-                        sender: messageData['sender'],
-                        sentByMe: widget.userName == messageData['sender'],
+                        sender: displayName,
+                        sentByMe: sentByMe,
                         time: formattedTime,
                       ),
                     ],
@@ -139,7 +148,7 @@ class _ChatPageState extends State<ChatPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Constants().primaryColor,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
@@ -158,7 +167,7 @@ class _ChatPageState extends State<ChatPage> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Colors.grey[700],
                 borderRadius: BorderRadius.circular(20),
               ),
               child: TextFormField(
@@ -167,6 +176,7 @@ class _ChatPageState extends State<ChatPage> {
                 style: const TextStyle(color: Colors.black),
                 decoration: const InputDecoration(
                   hintText: "Type a message...",
+                  hintStyle: TextStyle(color: Colors.white),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 15,
                     vertical: 10,
@@ -192,15 +202,14 @@ class _ChatPageState extends State<ChatPage> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color:
-                    messageController.text.isNotEmpty
-                        ? Theme.of(context).primaryColor
-                        : Colors.grey,
-                borderRadius: BorderRadius.circular(20),
+                color: messageController.text.isNotEmpty
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey,
+                borderRadius: BorderRadius.circular(15),
               ),
-              child: const Icon(Icons.send_sharp, color: Colors.white),
+              child:  Icon(Icons.send_sharp, color: Constants().primaryColor),
             ),
           ),
         ],

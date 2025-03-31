@@ -1,10 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../../../core/services/database_service.dart';
-import '../../widgets/widgets.dart';
+import 'package:groupie_v2/core/services/database_service.dart';
+import '../../../core/shared/textstyles.dart';
 import '../group_request/group_request_page.dart';
 import '../home/home_page.dart';
+import 'group_info_dialogs.dart';
+import 'group_info_widgets.dart';
 
 class GroupInfo extends StatefulWidget {
   final String groupId;
@@ -31,213 +32,168 @@ class _GroupInfoState extends State<GroupInfo> {
   void initState() {
     super.initState();
     _getGroupMembers();
-    _checkIfCurrentUserIsAdmin(); // admin check happens early
+    _checkIfCurrentUserIsAdmin();
   }
 
-  void _getGroupMembers() async {
-    final stream =
-    DatabaseService(uid: currentUserId).getGroupMembers(widget.groupId);
+  void _getGroupMembers() {
     setState(() {
-      membersStream = stream;
+      membersStream = DatabaseService(uid: currentUserId).getGroupMembers(widget.groupId);
     });
   }
 
   void _checkIfCurrentUserIsAdmin() {
-    final adminId = getId(widget.adminName);
     setState(() {
-      isCurrentUserAdmin = (currentUserId == adminId);
+      isCurrentUserAdmin = (currentUserId == _getId(widget.adminName));
     });
   }
 
-  String getName(String member) =>
-      member.contains('_') ? member.split('_')[1] : "Unknown";
+  String _getId(String member) => member.contains('_') ? member.split('_')[0] : "Unknown ID";
 
-  String getId(String member) =>
-      member.contains('_') ? member.split('_')[0] : "Unknown ID";
+  Future<void> _handleLeaveGroup() async {
+    try {
+      await DatabaseService(uid: currentUserId).leaveGroup(widget.groupId, widget.groupName);
 
-  void _exitGroup() {
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Exit"),
-        content: const Text("Are you sure you want to exit the group?"),
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.cancel, color: Colors.red),
-          ),
-          IconButton(
-            onPressed: () async {
-              await DatabaseService(uid: currentUserId).toggleGroupJoin(
-                widget.groupId,
-                getName(widget.adminName),
-                widget.groupName,
-              );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("You have left the group")),
-                );
-                nextScreenReplaced(context, const HomePage());
-              }
-            },
-            icon: const Icon(Icons.done, color: Colors.green),
-          ),
-        ],
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(CupertinoIcons.back, color: Colors.white),
-        onPressed: () {
-          nextScreenReplaced(context, const HomePage());
-        },
-      ),
-      centerTitle: true,
-      elevation: 0,
-      backgroundColor: Theme.of(context).primaryColor,
-      title: const Text("GROUP INFO", style: TextStyle(color: Colors.white)),
-      actions: [
-        if (isCurrentUserAdmin)
-          IconButton(
-            icon: const Icon(Icons.group_add, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GroupRequestsPage(
-                    groupId: widget.groupId,
-                    groupName: widget.groupName,
-                  ),
-                ),
-              );
-            },
-          ),
-        IconButton(
-          onPressed: _exitGroup,
-          icon: const Icon(Icons.exit_to_app, color: Colors.white),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMemberList(Map<String, dynamic> data) {
-    List<dynamic> members = data['members'] ?? [];
-
-    // Remove admin from member list
-    members.removeWhere((member) => member == widget.adminName);
-
-    if (members.isEmpty) {
-      return const Center(child: Text("NO MEMBERS"));
-    }
-
-    return ListView.builder(
-      itemCount: members.length,
-      itemBuilder: (context, index) {
-        String member = members[index];
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
-          child: ListTile(
-            leading: CircleAvatar(
-              radius: 30,
-              backgroundColor: Theme.of(context).primaryColor,
-              child: Text(
-                getName(member).substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            title: Text(getName(member)),
-            subtitle: Text(getId(member)),
-          ),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Successfully left the group")),
         );
-      },
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeMember(String memberId, String memberName) async {
+    final confirmed = await GroupInfoDialogs.showRemoveMemberConfirmation(
+      context: context,
+      memberName: memberName,
+    );
+
+    if (confirmed == true) {
+      try {
+        await DatabaseService(uid: currentUserId).removeMemberFromGroup(
+          groupId: widget.groupId,
+          groupName: widget.groupName,
+          memberId: memberId,
+          memberName: memberName,
+          fullMemberString: "${memberId}_$memberName",
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Member removed successfully")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error removing member: ${e.toString()}")),
+          );
+        }
+      }
+    }
+  }
+
+  void _handleExitAction() {
+    if (isCurrentUserAdmin) {
+      GroupInfoDialogs.showAdminTransferDialog(
+        context: context,
+        onContinue: () => _showMemberSelectionDialog(),
+      );
+    } else {
+      GroupInfoDialogs.showLeaveConfirmation(
+        context: context,
+        onLeaveConfirmed: _handleLeaveGroup,
+      );
+    }
+  }
+
+  void _showMemberSelectionDialog() {
+    GroupInfoDialogs.showMemberSelectionDialog(
+      context: context,
+      membersStream: membersStream!,
+      adminName: widget.adminName,
+      groupId: widget.groupId,
+      currentUserId: currentUserId,
+      onLeaveConfirmed: _handleLeaveGroup,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (!didPop) {
-          nextScreenReplaced(context, const HomePage());
-        }
-      },
-      child: Scaffold(
-        appBar: _buildAppBar(), //  uses extracted method
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: StreamBuilder(
-            stream: membersStream,
-            builder: (context, AsyncSnapshot snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                    child: Text("Something went wrong: ${snapshot.error}"));
-              }
+    return Scaffold(
+      appBar: GroupInfoWidgets.buildAppBar(
+        context: context,
+        isCurrentUserAdmin: isCurrentUserAdmin,
+        groupId: widget.groupId,
+        groupName: widget.groupName,
+        onBackPressed: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        ),
+        onTransferPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GroupRequestsPage(
+                groupId: widget.groupId,
+                groupName: widget.groupName,
+              ),
+            ),
+          );
+        },
+        onExitPressed: _handleExitAction,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            GroupInfoWidgets.buildGroupHeader(
+              groupName: widget.groupName,
+              adminName: widget.adminName,
+            ),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Members", style: AppTextStyles.medium),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: StreamBuilder(
+                stream: membersStream,
+                builder: (context, AsyncSnapshot snapshot) {
+                  if (snapshot.hasError) {
+                    return GroupInfoWidgets.buildErrorWidget();
+                  }
 
-              if (!snapshot.hasData ||
-                  snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child:
-                  CircularProgressIndicator(color: Theme.of(context).primaryColor),
-                );
-              }
+                  if (!snapshot.hasData ||
+                      snapshot.connectionState == ConnectionState.waiting) {
+                    return GroupInfoWidgets.buildLoadingIndicator(context);
+                  }
 
-              final data = snapshot.data?.data();
-              if (data == null) return const Center(child: Text("No data"));
+                  final data = snapshot.data?.data() as Map<String, dynamic>?;
+                  if (data == null) {
+                    return GroupInfoWidgets.buildNoDataWidget();
+                  }
 
-              return Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Text(
-                            widget.groupName.substring(0, 1).toUpperCase(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Group: ${widget.groupName}",
-                                style: const TextStyle(fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 5),
-                            Text(
-                              "Admin: ${widget.adminName.contains("_") ? getName(widget.adminName) : widget.adminName}",
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text("Members",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 10),
-                  Expanded(child: _buildMemberList(data)),
-                ],
-              );
-            },
-          ),
+                  return GroupInfoWidgets.buildMemberList(
+                    data: data,
+                    adminName: widget.adminName,
+                    isCurrentUserAdmin: isCurrentUserAdmin,
+                    onRemoveMember: _removeMember,
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

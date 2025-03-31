@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../core/services/database_service.dart';
 
 class GroupRequestsPage extends StatefulWidget {
@@ -27,50 +26,71 @@ class _GroupRequestsPageState extends State<GroupRequestsPage> {
   }
 
   Future<void> fetchRequests() async {
-    try {
-      var groupDoc = await DatabaseService().groupCollection.doc(widget.groupId).get();
-      final data = groupDoc.data() as Map<String, dynamic>?;
-
-      // Optional: simulate slight loading delay
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      setState(() {
-        requests = data?['groupRequests'] != null
-            ? List.from(data!['groupRequests'])
-            : [];
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        requests = [];
-        isLoading = false;
-      });
-    }
+    final groupDoc = await DatabaseService().groupCollection.doc(widget.groupId).get();
+    setState(() {
+      requests = groupDoc['groupRequests'] ?? [];
+      isLoading = false;
+    });
   }
 
-  Future<void> approveRequest(String requestId) async {
-    String userId = requestId.split("_")[0];
-    String userName = requestId.split("_")[1];
+  void showAssignNameDialog(String requestId) {
+    final userId = requestId.split("_")[0];
+    final userName = requestId.split("_")[1];
+    final TextEditingController nameController = TextEditingController();
 
-    await DatabaseService().approveJoinRequest(
-      widget.groupId,
-      userId,
-      userName,
-    );
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("Assign Anonymous Name"),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: "e.g. BlueWolf, CuriousCat",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text("Approve"),
+            onPressed: () async {
+              String anonName = nameController.text.trim();
+              if (anonName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Name cannot be empty")),
+                );
+                return;
+              }
 
-    fetchRequests();
+              Navigator.pop(context); // Close dialog
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("User approved")),
+              await DatabaseService().approveJoinRequest(
+                groupId: widget.groupId,
+                groupName: widget.groupName,
+                userId: userId,
+                userName: userName,
+                assignedName: anonName,
+              );
+
+              fetchRequests(); // Refresh list
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("$anonName has been approved")),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Join Requests - ${widget.groupName}"),
-      ),
+      appBar: AppBar(title: Text("Join Requests - ${widget.groupName}")),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : requests.isEmpty
@@ -82,7 +102,7 @@ class _GroupRequestsPageState extends State<GroupRequestsPage> {
           return ListTile(
             title: Text(name),
             trailing: ElevatedButton(
-              onPressed: () => approveRequest(requests[index]),
+              onPressed: () => showAssignNameDialog(requests[index]),
               child: const Text("Approve"),
             ),
           );
