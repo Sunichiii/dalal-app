@@ -1,3 +1,4 @@
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart'; // Import emoji picker package
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:groupie_v2/core/shared/constants.dart';
@@ -31,6 +32,7 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   FocusNode messageFocusNode = FocusNode();
+  bool isEmojiVisible = false;
 
   @override
   void initState() {
@@ -74,7 +76,18 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
       body: Column(
-        children: [Expanded(child: chatMessages()), messageInputField()],
+        children: [
+          Expanded(child: chatMessages()), // Displays chat messages
+          isEmojiVisible
+              ? EmojiPicker(
+            onEmojiSelected: (category, emoji) {
+              messageController.text += emoji.emoji; // Add emoji to text input
+              messageFocusNode.requestFocus(); // Ensure the focus is still on the input field
+            },
+          )
+              : Container(), // Show emoji picker if visible
+          messageInputField(), // Message input field
+        ],
       ),
     );
   }
@@ -93,18 +106,13 @@ class _ChatPageState extends State<ChatPage> {
               }
 
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollController.jumpTo(
-                  _scrollController.position.maxScrollExtent,
-                );
+                _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
               });
 
               return ListView.builder(
                 controller: _scrollController,
                 itemCount: snapshot.data.docs.length,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 5,
-                  horizontal: 1,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 1),
                 itemBuilder: (context, index) {
                   var messageData = snapshot.data.docs[index];
                   String sender = messageData['sender'];
@@ -114,10 +122,8 @@ class _ChatPageState extends State<ChatPage> {
                   String currentUserId = FirebaseAuth.instance.currentUser!.uid;
                   bool sentByMe = sender.startsWith(currentUserId);
 
-                  DateTime messageDateTime =
-                  DateTime.fromMillisecondsSinceEpoch(messageData['time']);
-                  String formattedTime =
-                  DateFormat('hh:mm a').format(messageDateTime);
+                  DateTime messageDateTime = DateTime.fromMillisecondsSinceEpoch(messageData['time']);
+                  String formattedTime = DateFormat('hh:mm a').format(messageDateTime);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,6 +170,20 @@ class _ChatPageState extends State<ChatPage> {
       ),
       child: Row(
         children: [
+          // **Emoji Button**: This toggles the emoji picker visibility when clicked
+          IconButton(
+            icon: const Icon(Icons.emoji_emotions),
+            onPressed: () {
+              setState(() {
+                isEmojiVisible = !isEmojiVisible; // Toggle visibility of emoji picker
+                if (isEmojiVisible) {
+                  FocusScope.of(context).unfocus(); // Dismiss the keyboard when emoji picker is visible
+                } else {
+                  messageFocusNode.requestFocus(); // Ensure the focus is on the input field if keyboard should show
+                }
+              });
+            },
+          ),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -177,10 +197,7 @@ class _ChatPageState extends State<ChatPage> {
                 decoration: const InputDecoration(
                   hintText: "Type a message...",
                   hintStyle: TextStyle(color: Colors.white),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 10,
-                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                   border: InputBorder.none,
                 ),
               ),
@@ -204,9 +221,7 @@ class _ChatPageState extends State<ChatPage> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: messageController.text.isNotEmpty
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey,
+                color: messageController.text.isNotEmpty ? Theme.of(context).primaryColor : Colors.grey,
                 borderRadius: BorderRadius.circular(15),
               ),
               child:  Icon(Icons.send_sharp, color: Constants().primaryColor),

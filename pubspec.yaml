@@ -43,6 +43,8 @@ dependencies:
   flutter_bloc: ^9.1.0
   intl: ^0.20.2
   google_fonts: ^4.0.4
+  emoji_picker_flutter: ^4.3.0
+  firebase_storage: ^12.4.5
 
 dev_dependencies:
   flutter_test:
