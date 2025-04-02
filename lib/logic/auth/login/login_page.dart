@@ -28,7 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black38,
+      backgroundColor: Constants().primaryColor,
       body:
           _isLoading
               ? Center(child: CircularProgressIndicator(color: Colors.blue))
@@ -110,8 +110,7 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Constants().primaryColor,
-                              side: BorderSide(color: Colors.white, width: 2),
+                              backgroundColor: Colors.black,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -121,7 +120,7 @@ class _LoginPageState extends State<LoginPage> {
                               login();
                             },
                             child: Text(
-                              "Sign In",
+                              "SIGN IN",
                               style: AppTextStyles.small
                             ),
                           ),

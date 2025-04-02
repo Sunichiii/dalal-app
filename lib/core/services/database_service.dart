@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class DatabaseService {
   final String? uid;
@@ -6,10 +9,68 @@ class DatabaseService {
   DatabaseService({this.uid});
 
   // Firebase collections
-  final CollectionReference userCollection =
-  FirebaseFirestore.instance.collection("users");
-  final CollectionReference groupCollection =
-  FirebaseFirestore.instance.collection("groups");
+  final CollectionReference userCollection = FirebaseFirestore.instance.collection("users");
+  final CollectionReference groupCollection = FirebaseFirestore.instance.collection("groups");
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  // Method to upload image/videos
+  Future<String> uploadMedia(File mediaFile) async {
+    try {
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      Reference storageRef = _storage.ref().child("chat_media/$fileName");
+
+      UploadTask uploadTask = storageRef.putFile(mediaFile);
+      TaskSnapshot taskSnapshot = await uploadTask;
+      String mediaUrl = await taskSnapshot.ref.getDownloadURL();
+
+      return mediaUrl;
+    } catch (e) {
+      throw Exception("Failed to upload media: $e");
+    }
+  }
+
+  // Method to send a text message
+  Future<void> sendTextMessage(String groupId, String message, String sender) async {
+    await sendMessage(groupId, {
+      'message': message,
+      'sender': sender,
+      'time': FieldValue.serverTimestamp(),
+      'type': 'text', // Always set the type as 'text' for text messages
+    });
+  }
+
+  // Method to send a media message (image/video)
+  Future<void> sendMediaMessage(String groupId, File mediaFile, String sender) async {
+    try {
+      String mediaUrl = await uploadMedia(mediaFile);
+
+      await sendMessage(groupId, {
+        'message': mediaUrl, // Store the URL of the media
+        'sender': sender,
+        'time': FieldValue.serverTimestamp(),
+        'type': 'media', // Mark this message as media
+      });
+    } catch (e) {
+      throw Exception("Failed to send media message: $e");
+    }
+  }
+
+  Future<void> sendMessage(String groupId, Map<String, dynamic> chatMessageData) async {
+    // Ensure required fields are present
+    final messageData = {
+      'message': chatMessageData['message'] ?? '',
+      'sender': chatMessageData['sender'] ?? 'unknown',
+      'time': chatMessageData['time'] ?? FieldValue.serverTimestamp(),
+      'type': chatMessageData['type'] ?? 'text', // Default to text if missing
+    };
+
+    await groupCollection.doc(groupId).collection("messages").add(messageData);
+    await groupCollection.doc(groupId).update({
+      "recentMessage": messageData['message'],
+      "recentMessageSender": messageData['sender'],
+      "recentMessageTime": messageData['time'].toString(),
+    });
+  }
 
   // Save user data when account is created
   Future<void> savingUserData(String fullName, String email) async {
@@ -136,10 +197,8 @@ class DatabaseService {
   Future<void> _deleteEntireGroup(String groupId, String groupName) async {
     WriteBatch batch = FirebaseFirestore.instance.batch();
 
-    // Delete group document
     batch.delete(groupCollection.doc(groupId));
 
-    // Delete all messages
     final messages = await groupCollection.doc(groupId).collection("messages").get();
     for (var doc in messages.docs) {
       batch.delete(doc.reference);
@@ -159,16 +218,6 @@ class DatabaseService {
     await groupCollection.doc(groupId).update({
       "admin": newAdminString,
       "members": FieldValue.arrayUnion([newAdminString]),
-    });
-  }
-
-  // Send message
-  Future<void> sendMessage(String groupId, Map<String, dynamic> chatMessageData) async {
-    await groupCollection.doc(groupId).collection("messages").add(chatMessageData);
-    await groupCollection.doc(groupId).update({
-      "recentMessage": chatMessageData['message'],
-      "recentMessageSender": chatMessageData['sender'],
-      "recentMessageTime": chatMessageData['time'].toString(),
     });
   }
 
@@ -217,4 +266,26 @@ class DatabaseService {
       "groups": FieldValue.arrayRemove(["${groupId}_$groupName"])
     });
   }
+
+  //updating old messages
+  Future<void> updateOldMessages(String groupId) async {
+    try {
+      // Fetch messages without 'type' field
+      FirebaseFirestore.instance
+          .collection('groups')
+          .doc(groupId)
+          .collection('messages')
+          .get()
+          .then((querySnapshot) {
+        querySnapshot.docs.forEach((doc) {
+          if (!doc.data().containsKey('type')) {
+            doc.reference.update({'type': 'text'});  // Default 'type' to 'text' for old messages
+          }
+        });
+      });
+    } catch (e) {
+      print('Error updating old messages: $e');
+    }
+  }
+
 }

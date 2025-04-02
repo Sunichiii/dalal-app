@@ -1,12 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:groupie_v2/core/shared/textstyles.dart';
 import 'package:groupie_v2/data/sources/helper_function.dart';
-import '../../../core/services/database_service.dart';
 import '../../widgets/widgets.dart';
-import '../chat/chat_page.dart';
+import '../search/bloc/search_bloc.dart';
+import '../search/bloc/search_event.dart';
+import '../search/bloc/search_state.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -16,37 +17,34 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  TextEditingController searchController = TextEditingController();
-  bool isLoading = false;
-  QuerySnapshot? searchSnapshot;
-  bool hasUserSearched = false;
-  String userName = "";
-  User? user;
-  bool isJoined = false;
+  final TextEditingController searchController = TextEditingController();
+  late String userName;
+  late User user;
 
   @override
   void initState() {
     super.initState();
-    getCurrentUserIdandName();
+    getCurrentUserDetails();
   }
 
-  String getName(String member) {
-    if (member.isEmpty || !member.contains("_")) return "Unknown";
-    return member.substring(member.indexOf("_") + 1);
+  Future<void> getCurrentUserDetails() async {
+    userName = (await HelperFunctions.getUserNameSF()) ?? "";
+    user = FirebaseAuth.instance.currentUser!;
   }
 
-  String getId(String member) {
-    if (member.isEmpty || !member.contains("_")) return "Unknown ID";
-    return member.substring(0, member.indexOf("_"));
+  void onSearch() {
+    if (searchController.text.isNotEmpty) {
+      context.read<SearchBloc>().add(SearchGroups(searchController.text));
+    }
   }
 
-  getCurrentUserIdandName() async {
-    await HelperFunctions.getUserNameSF().then((value) {
-      setState(() {
-        userName = value ?? "";
-      });
-    });
-    user = FirebaseAuth.instance.currentUser;
+  void onJoinRequest(String groupId, String groupName) {
+    context.read<SearchBloc>().add(SendJoinRequest(
+      groupId: groupId,
+      groupName: groupName,
+      userName: userName,
+      userId: user.uid,
+    ));
   }
 
   @override
@@ -54,12 +52,12 @@ class _SearchPageState extends State<SearchPage> {
     return Scaffold(
       backgroundColor: Constants().backGroundColor,
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Theme.of(context).primaryColor,
         title: const Text(
-          "S E A R C H ",
+          "S E A R C H",
           style: TextStyle(
             fontSize: 27,
             fontWeight: FontWeight.bold,
@@ -69,15 +67,7 @@ class _SearchPageState extends State<SearchPage> {
       ),
       body: Column(
         children: [
-          // Divider below the AppBar
-          const Divider(
-            height: 2,  // Adjust the height to control the space
-            thickness: 1,  // Thickness of the divider line
-            color: Colors.white,  // Color of the divider
-            indent: 0,
-            endIndent: 0,
-          ),
-
+          const Divider(height: 2, thickness: 1, color: Colors.white),
           Container(
             color: Theme.of(context).primaryColor,
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -90,19 +80,16 @@ class _SearchPageState extends State<SearchPage> {
                     decoration: InputDecoration(
                       hintText: "Search for a group...",
                       hintStyle: AppTextStyles.small,
-                      border: OutlineInputBorder(
+                      border: const OutlineInputBorder(),
+                      focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white)
-                      )
                     ),
                   ),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 GestureDetector(
-                  onTap: () {
-                    initiateSearchMethod();
-                  },
+                  onTap: onSearch,
                   child: Container(
                     width: 50,
                     height: 50,
@@ -116,68 +103,57 @@ class _SearchPageState extends State<SearchPage> {
               ],
             ),
           ),
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : groupList(),
+          Expanded(
+            child: BlocConsumer<SearchBloc, SearchState>(
+              listener: (context, state) {
+                if (state is JoinRequestSent) {
+                  showSnackbar(context, Constants().primaryColor,
+                      "Sent a request to ${state.groupName}");
+                } else if (state is SearchError) {
+                  showSnackbar(context, Colors.red, state.message);
+                }
+              },
+              builder: (context, state) {
+                if (state is SearchLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (state is SearchLoaded) {
+                  return ListView.builder(
+                    itemCount: state.results.docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = state.results.docs[index];
+                      return groupTile(
+                        groupId: doc['groupId'],
+                        groupName: doc['groupName'],
+                        admin: doc['admin'],
+                      );
+                    },
+                  );
+                } else {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 50),
+                      child: Text(
+                        "Search for groups above",
+                        style: AppTextStyles.medium,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 
-  initiateSearchMethod() async {
-    if (searchController.text.isNotEmpty) {
-      setState(() {
-        isLoading = true;
-      });
-
-      await DatabaseService().searchByName(searchController.text).then((snapshot) {
-        setState(() {
-          searchSnapshot = snapshot;
-          isLoading = false;
-          hasUserSearched = true;
-        });
-      });
-    }
-  }
-
-  Widget groupList() {
-    return hasUserSearched
-        ? searchSnapshot != null && searchSnapshot!.docs.isNotEmpty
-        ? ListView.builder(
-      itemCount: searchSnapshot!.docs.length,
-      shrinkWrap: true,
-      itemBuilder: (context, index) {
-        return groupTile(
-          userName,
-          searchSnapshot!.docs[index]['groupId'],
-          searchSnapshot!.docs[index]['groupName'],
-          searchSnapshot!.docs[index]['admin'],
-        );
-      },
-    )
-        : const Center(child: Text("No Groups Found"))
-        : Container();
-  }
-
-  joinedOrNot(String userName, groupId, groupName, admin) async {
-    await DatabaseService(
-      uid: user!.uid,
-    ).isUserJoined(groupName, groupId, userName).then((value) {
-      setState(() {
-        isJoined = value;
-      });
-    });
-  }
-
-  Widget groupTile(
-      String userName,
-      String groupId,
-      String groupName,
-      String admin,
-      ) {
-    joinedOrNot(userName, groupId, groupName, admin);
+  Widget groupTile({
+    required String groupId,
+    required String groupName,
+    required String admin,
+  }) {
     return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
       title: Text(groupName, style: AppTextStyles.medium),
       leading: CircleAvatar(
         radius: 30,
@@ -187,56 +163,15 @@ class _SearchPageState extends State<SearchPage> {
           style: AppTextStyles.medium,
         ),
       ),
-      // subtitle: Text("Admin: ${getName(admin)}"),
       trailing: InkWell(
-        onTap: () async {
-          await DatabaseService().sendJoinRequest(groupId, userName, user!.uid);
-          if (isJoined) {
-            setState(() {
-              isJoined = !isJoined;
-            });
-            showSnackbar(
-              context,
-              Colors.green,
-              "Successfully joined the group",
-            );
-            Future.delayed(Duration(seconds: 2), () {
-              nextScreen(
-                context,
-                ChatPage(
-                  groupId: groupId,
-                  groupName: groupName,
-                  userName: userName,
-                ),
-              );
-            });
-          } else {
-            setState(() {
-              isJoined = !isJoined;
-              showSnackbar(context, Constants().primaryColor, "Sent a request to $groupName");
-            });
-          }
-        },
-        child: isJoined
-            ? Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: Colors.black,
-            border: Border.all(color: Colors.white),
-          ),
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Text(
-            "Joined",
-            style: TextStyle(fontSize: 16, color: Colors.white),
-          ),
-        )
-            : Container(
+        onTap: () => onJoinRequest(groupId, groupName),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             color: Theme.of(context).primaryColor,
           ),
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Text(
+          child: const Text(
             "Request Join?",
             style: TextStyle(fontSize: 16, color: Colors.white),
           ),

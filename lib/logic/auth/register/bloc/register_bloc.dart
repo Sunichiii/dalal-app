@@ -14,11 +14,11 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
   Future<void> _onRegisterUser(RegisterUser event, Emitter<RegisterState> emit) async {
     emit(RegisterLoading());
     try {
-      bool result = (await authService.registerUserWithEmailAndPassword(
+      var result = await authService.registerUserWithEmailAndPassword(
         event.fullName, event.email, event.password,
-      )) as bool;
+      );
 
-      if (result) {
+      if (result == true) {
         await HelperFunctions.saveUserLoggedInStatus(true);
         await HelperFunctions.saveUserEmailSF(event.email);
         await HelperFunctions.saveUserNameSF(event.fullName);

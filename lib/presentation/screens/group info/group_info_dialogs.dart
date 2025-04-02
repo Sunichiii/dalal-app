@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:groupie_v2/core/services/database_service.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:groupie_v2/core/shared/textstyles.dart';
 
 class GroupInfoDialogs {
@@ -39,6 +40,7 @@ class GroupInfoDialogs {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Constants().backGroundColor,
         title: Text("Transfer Admin Rights", style: AppTextStyles.large),
         content: Text(
           "As admin, you must transfer admin rights before leaving. "
@@ -48,14 +50,14 @@ class GroupInfoDialogs {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white),),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               onContinue();
             },
-            child: const Text("Continue"),
+            child: const Text("Continue", style: TextStyle(color: Colors.red),),
           ),
         ],
       ),
@@ -156,6 +158,7 @@ class GroupInfoDialogs {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Constants().backGroundColor,
         title: Text("Remove Member", style: AppTextStyles.large),
         content: Text(
           "Are you sure you want to remove $memberName from the group?",
@@ -164,7 +167,7 @@ class GroupInfoDialogs {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+            child: const Text("Cancel", style: TextStyle(color: Colors.green),),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),

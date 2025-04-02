@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:groupie_v2/helper/helper_function.dart';
-import 'package:groupie_v2/pages/chat/chat_page.dart';
-import 'package:groupie_v2/services/database_service.dart';
-import 'package:groupie_v2/widgets/widgets.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
+import 'package:groupie_v2/core/shared/textstyles.dart';
+import 'package:groupie_v2/data/sources/helper_function.dart';
+import '../../../core/services/database_service.dart';
+import '../../widgets/widgets.dart';
+import '../chat/chat_page.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -14,7 +16,7 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  TextEditingController searchController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
   bool isLoading = false;
   QuerySnapshot? searchSnapshot;
   bool hasUserSearched = false;
@@ -28,6 +30,15 @@ class _SearchPageState extends State<SearchPage> {
     getCurrentUserIdandName();
   }
 
+  Future<void> getCurrentUserIdandName() async {
+    await HelperFunctions.getUserNameSF().then((value) {
+      setState(() {
+        userName = value ?? "";
+      });
+    });
+    user = FirebaseAuth.instance.currentUser;
+  }
+
   String getName(String member) {
     if (member.isEmpty || !member.contains("_")) return "Unknown";
     return member.substring(member.indexOf("_") + 1);
@@ -38,83 +49,15 @@ class _SearchPageState extends State<SearchPage> {
     return member.substring(0, member.indexOf("_"));
   }
 
-  getCurrentUserIdandName() async {
-    await HelperFunctions.getUserNameSF().then((value) {
-      setState(() {
-        userName = value ?? "";
-      });
-    });
-    user = FirebaseAuth.instance.currentUser;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Search Group",
-          style: TextStyle(
-            fontSize: 27,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: Theme.of(context).primaryColor,
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: "Search for a group",
-                      hintStyle: TextStyle(color: Colors.white),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    initiateSearchMethod();
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey,
-                      borderRadius: BorderRadius.circular(40),
-                    ),
-                    child: const Icon(Icons.search, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : groupList(),
-        ],
-      ),
-    );
-  }
-
-  initiateSearchMethod() async {
+  Future<void> initiateSearchMethod() async {
     if (searchController.text.isNotEmpty) {
       setState(() {
         isLoading = true;
       });
 
-      await DatabaseService().searchByName(searchController.text).then((
-        snapshot,
-      ) {
+      await DatabaseService()
+          .searchByName(searchController.text)
+          .then((snapshot) {
         setState(() {
           searchSnapshot = snapshot;
           isLoading = false;
@@ -124,66 +67,77 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  Widget groupList() {
-    return hasUserSearched
-        ? searchSnapshot != null && searchSnapshot!.docs.isNotEmpty
-            ? ListView.builder(
-              itemCount: searchSnapshot!.docs.length,
-              shrinkWrap: true,
-              itemBuilder: (context, index) {
-                return groupTile(
-                  userName,
-                  searchSnapshot!.docs[index]['groupId'],
-                  searchSnapshot!.docs[index]['groupName'],
-                  searchSnapshot!.docs[index]['admin'],
-                );
-              },
-            )
-            : const Center(child: Text("No Groups Found"))
-        : Container();
-  }
-
-  joinedOrNot(String userName, groupId, groupName, admin) async {
-    await DatabaseService(
-      uid: user!.uid,
-    ).isUserJoined(groupName, groupId, userName).then((value) {
+  Future<void> joinedOrNot(
+      String userName, groupId, groupName, admin) async {
+    await DatabaseService(uid: user!.uid)
+        .isUserJoined(groupName, groupId, userName)
+        .then((value) {
       setState(() {
         isJoined = value;
       });
     });
   }
 
+  Widget groupList() {
+    if (!hasUserSearched) return Container();
+
+    if (searchSnapshot != null && searchSnapshot!.docs.isNotEmpty) {
+      return ListView.builder(
+        itemCount: searchSnapshot!.docs.length,
+        shrinkWrap: true,
+        itemBuilder: (context, index) {
+          return groupTile(
+            userName,
+            searchSnapshot!.docs[index]['groupId'],
+            searchSnapshot!.docs[index]['groupName'],
+            searchSnapshot!.docs[index]['admin'],
+          );
+        },
+      );
+    } else {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.only(top: 50),
+          child: Text(
+            "No Groups Found !!",
+            style: TextStyle(fontSize: 20, color: Colors.white),
+          ),
+        ),
+      );
+    }
+  }
+
   Widget groupTile(
-    String userName,
-    String groupId,
-    String groupName,
-    String admin,
-  ) {
+      String userName,
+      String groupId,
+      String groupName,
+      String admin,
+      ) {
     joinedOrNot(userName, groupId, groupName, admin);
+
     return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      title: Text(groupName, style: TextStyle(fontWeight: FontWeight.w600)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+      title: Text(groupName, style: AppTextStyles.medium),
       leading: CircleAvatar(
         radius: 30,
         backgroundColor: Theme.of(context).primaryColor,
-        child: Text(groupName.substring(0, 1).toUpperCase()),
+        child: Text(
+          groupName.substring(0, 1).toUpperCase(),
+          style: AppTextStyles.medium,
+        ),
       ),
-      subtitle: Text("Admin: ${getName(admin)}"),
       trailing: InkWell(
         onTap: () async {
-          await DatabaseService(
-            uid: user!.uid,
-          ).toggleGroupJoin(groupId, userName, groupName);
+          await DatabaseService()
+              .sendJoinRequest(groupId, userName, user!.uid);
+
           if (isJoined) {
             setState(() {
               isJoined = !isJoined;
             });
-            showSnackbar(
-              context,
-              Colors.green,
-              "Successfully joined the group",
-            );
-            Future.delayed(Duration(seconds: 2), () {
+            showSnackbar(context, Colors.grey, "Successfully joined the group");
+
+            Future.delayed(const Duration(seconds: 2), () {
               nextScreen(
                 context,
                 ChatPage(
@@ -196,35 +150,108 @@ class _SearchPageState extends State<SearchPage> {
           } else {
             setState(() {
               isJoined = !isJoined;
-              showSnackbar(context, Colors.red, "Left the group $groupName");
+              showSnackbar(context, Constants().primaryColor,
+                  "Sent a request to $groupName");
             });
           }
         },
-        child:
-            isJoined
-                ? Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.black,
-                    border: Border.all(color: Colors.white),
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Text(
-                    "Joined",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                )
-                : Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Theme.of(context).primaryColor,
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Text(
-                    "Join Now",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+        child: isJoined
+            ? Container(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.black,
+            border: Border.all(color: Colors.white),
+          ),
+          child: const Text(
+            "Joined",
+            style: TextStyle(fontSize: 16, color: Colors.white),
+          ),
+        )
+            : Container(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: Theme.of(context).primaryColor,
+          ),
+          child: const Text(
+            "Request Join?",
+            style: TextStyle(fontSize: 16, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Constants().backGroundColor,
+      appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text(
+          "S E A R C H ",
+          style: TextStyle(
+            fontSize: 27,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      body: Column(
+        children: [
+          const Divider(
+            height: 2,
+            thickness: 1,
+            color: Colors.white,
+          ),
+          Container(
+            color: Theme.of(context).primaryColor,
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Search for a group...",
+                      hintStyle: AppTextStyles.small,
+                      border: const OutlineInputBorder(),
+                      focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => initiateSearchMethod(),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.search_outlined,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : groupList(),
+        ],
       ),
     );
   }

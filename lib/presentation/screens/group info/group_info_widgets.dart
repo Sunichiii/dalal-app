@@ -107,14 +107,14 @@ class GroupInfoWidgets {
 
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: Constants().secondaryColor,
+            backgroundColor: Constants().primaryColor,
             child: Text(
               anonName.substring(0, 1).toUpperCase(),
               style: const TextStyle(color: Colors.white),
             ),
           ),
-          title: Text(anonName),
-          subtitle: Text(memberId),
+          title: Text(anonName, style: AppTextStyles.medium,),
+          subtitle: Text(memberId, style: AppTextStyles.small,),
           trailing: isCurrentUserAdmin
               ? IconButton(
             icon: const Icon(Icons.person_remove, color: Colors.red),

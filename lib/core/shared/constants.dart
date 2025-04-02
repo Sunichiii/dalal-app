@@ -16,6 +16,6 @@ class Constants{
   final Color primaryColor = Color(0xFF212121);    // Dark Grey (Primary)
   final Color secondaryColor = Color(0xFF424242);  // Medium Grey (Secondary)
   final Color accentColor = Color(0xFF9E9E9E);     // Light Grey (Accent)
-  final Color backGroundColor = Color(0xFFFAFAFA);  // Off-White (Background)
+  final Color? backGroundColor = Colors.grey[800];  // Off-White (Background)
   final Color textColor = Color(0xFF000000);
 }

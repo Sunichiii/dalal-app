@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:groupie_v2/core/shared/textstyles.dart';
 import '../../../presentation/screens/home/home_page.dart';
 import '../../../presentation/widgets/widgets.dart';
@@ -25,7 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black26,
+      backgroundColor: Constants().primaryColor,
       body: BlocConsumer<RegisterBloc, RegisterState>(
         listener: (context, state) {
           if (state is RegisterSuccess) {
@@ -54,7 +55,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     Text(
-                      "Texty",
+                      "TEXTY",
                       style: AppTextStyles.large
                     ),
                     SizedBox(height: 10),
@@ -135,8 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                          Theme.of(context).primaryColor,
+                          backgroundColor:Colors.black,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -154,8 +154,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           }
                         },
                         child: Text(
-                          "Register",
-                          style: AppTextStyles.medium
+                          "REGISTER",
+                          style: AppTextStyles.small
                         ),
                       ),
                     ),

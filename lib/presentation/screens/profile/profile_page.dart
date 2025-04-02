@@ -7,29 +7,28 @@ import '../../widgets/widgets.dart';
 import '../home/home_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  String userName;
-  String email;
+  final String userName;
+  final String email;
 
-  ProfilePage({super.key, required this.email, required this.userName});
+  const ProfilePage({super.key, required this.email, required this.userName});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  AuthService authService = AuthService();
+  final AuthService authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Constants().backGroundColor,
       appBar: AppBar(
         leading: GestureDetector(
-          onTap: () {
-            nextScreen(context, HomePage());
-          },
-          child: Icon(CupertinoIcons.back),
+          onTap: () => nextScreen(context, HomePage()),
+          child: const Icon(CupertinoIcons.back),
         ),
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
         backgroundColor: Theme.of(context).primaryColor,
         elevation: 0,
@@ -42,32 +41,61 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ),
-
-      body: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 170),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Icon(
               Icons.account_circle,
-              size: 150,
+              size: 130,
               color: Constants().primaryColor,
             ),
-            const SizedBox(height: 15),
-            const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Full Name", style: AppTextStyles.medium),
-                Text(widget.userName, style: AppTextStyles.medium),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Email", style: AppTextStyles.medium),
-                Text(widget.email, style: AppTextStyles.medium),
-              ],
+            const SizedBox(height: 20),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              color: Colors.grey[850],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 25,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.person, color: Colors.white),
+                        const SizedBox(width: 10),
+                        Text("Full Name", style: AppTextStyles.medium),
+                        const Spacer(),
+                        Text(widget.userName, style: AppTextStyles.medium),
+                      ],
+                    ),
+                    const Divider(
+                      height: 30,
+                      thickness: 0.5,
+                      color: Colors.white24,
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.email, color: Colors.white),
+                        const SizedBox(width: 10),
+                        Text("Email", style: AppTextStyles.small),
+                        const Spacer(),
+                        Flexible(
+                          child: Text(
+                            widget.email,
+                            style: AppTextStyles.small,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

@@ -27,12 +27,12 @@ class GroupTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Constants().backGroundColor,
+        color: Colors.grey[900],
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
+            color: Colors.black,
+            blurRadius: 3,
             offset: const Offset(0, 4),
           ),
         ],
@@ -51,7 +51,7 @@ class GroupTile extends StatelessWidget {
               ),
             );
           },
-          splashColor: Constants().primaryColor.withOpacity(0.2),
+          splashColor: Constants().primaryColor,
           highlightColor: Colors.transparent,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -112,7 +112,7 @@ class GroupTile extends StatelessWidget {
                         Text(
                           'Tap to start chatting',
                           style: AppTextStyles.small.copyWith(
-                            color: Colors.grey[600],
+                            color: Colors.grey[500],
                             fontStyle: FontStyle.italic,
                           ),
                         ),

@@ -1,18 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:groupie_v2/core/services/auth_services.dart';
-import 'package:groupie_v2/core/services/database_service.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:groupie_v2/core/shared/textstyles.dart';
-import 'package:groupie_v2/presentation/widgets/group_tile.dart';
-import 'package:groupie_v2/presentation/widgets/widgets.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/services/auth_services.dart';
+import '../../../core/services/database_service.dart';
 import '../../../data/sources/helper_function.dart';
+import '../../../logic/auth/login/login_page.dart';
+import '../../widgets/group_tile.dart';
+import '../../widgets/widgets.dart';
 import '../profile/profile_page.dart';
-
-
-
 import '../search/search_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,7 +23,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String userName = "";
   String email = "";
-  String profilePic = "";
   AuthService authService = AuthService();
   Stream<DocumentSnapshot>? groups;
   bool _isLoading = false;
@@ -36,15 +34,18 @@ class _HomePageState extends State<HomePage> {
     gettingUserData();
   }
 
+  // string manipulation
   String getId(String res) => res.substring(0, res.indexOf("_"));
+
   String getName(String res) => res.substring(res.indexOf("_") + 1);
 
   gettingUserData() async {
     email = (await HelperFunctions.getUserEmailSF()) ?? "";
     userName = (await HelperFunctions.getUserNameSF()) ?? "";
-    //profilePic = (await HelperFunctions.getProfilePicSF()) ?? "";
 
-    final groupStream = DatabaseService(
+    // Get user groups as stream
+    final groupStream =
+    DatabaseService(
       uid: FirebaseAuth.instance.currentUser!.uid,
     ).getUserGroups();
 
@@ -57,310 +58,274 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Constants().backGroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // AppBar
-          SliverAppBar(
-            expandedHeight: 150,
-            floating: false,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                "Your Groups",
-                style: AppTextStyles.large.copyWith(
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 10,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Constants().primaryColor,
-                      Constants().secondaryColor,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.search, color: Colors.white),
-                onPressed: () => nextScreen(context, const SearchPage()),
-              ),
-            ],
-          ),
-          // Body Content
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Column(
-                children: [
-                  // User Profile Card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: GestureDetector(
-                      onTap: () => nextScreen(
-                        context,
-                        ProfilePage(userName: userName, email: email),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: Constants().primaryColor,
-                              backgroundImage: profilePic.isNotEmpty
-                                  ? NetworkImage(profilePic)
-                                  : null,
-                              child: profilePic.isEmpty
-                                  ? Icon(Icons.person, size: 30, color: Colors.white)
-                                  : null,
-                            ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  userName,
-                                  style: AppTextStyles.medium.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  email,
-                                  style: AppTextStyles.small.copyWith(
-                                    color: Colors.grey[400],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Spacer(),
-                            const Icon(Icons.chevron_right, color: Colors.white),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-          // Groups List
-          groups != null
-              ? StreamBuilder<DocumentSnapshot>(
-            stream: groups,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              if (!snapshot.hasData || !snapshot.data!.exists) {
-                return SliverToBoxAdapter(
-                  child: noGroupWidget(),
-                );
-              }
-
-              final data = snapshot.data!.data() as Map<String, dynamic>;
-              final groupList = data['groups'] ?? [];
-
-              if (groupList.isEmpty) {
-                return SliverToBoxAdapter(
-                  child: noGroupWidget(),
-                );
-              }
-
-              return SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    int reverseIndex = groupList.length - index - 1;
-                    return GroupTile(
-                      groupId: getId(groupList[reverseIndex]),
-                      groupName: getName(groupList[reverseIndex]),
-                      userName: data['fullName'],
-                    );
-                  },
-                  childCount: groupList.length,
-                ),
-              );
+      //Constants().backgroundColor,
+      appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: () {
+              nextScreen(context, const SearchPage());
             },
-          )
-              : const SliverFillRemaining(
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            icon: const Icon(Icons.search, color: Colors.white),
           ),
         ],
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text(
+          "G R O U P S",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
       ),
+      drawer: Drawer(
+        backgroundColor: Colors.grey[900],
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 50),
+          children: <Widget>[
+            Icon(
+              CupertinoIcons.person_circle_fill,
+              size: 120,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 15),
+            Text(
+              userName,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.medium,
+            ),
+            SizedBox(height: 20),
+            Divider(height: 2),
+            const SizedBox(height: 30),
+            ListTile(
+              onTap: () {},
+              selectedColor: Theme.of(context).primaryColor,
+              selected: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 5,
+              ),
+              leading: const Icon(CupertinoIcons.group, color: Colors.white),
+              title: Text(" G R O U P S",style: AppTextStyles.medium),
+            ),
+            ListTile(
+              onTap: () {
+                nextScreenReplaced(
+                  context,
+                  ProfilePage(userName: userName, email: email),
+                );
+              },
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 5,
+              ),
+              leading: const Icon(CupertinoIcons.person, color: Colors.white),
+              title: Text("P R O F I L E", style: AppTextStyles.medium),
+            ),
+            ListTile(
+              onTap: () async {
+                showDialog(
+                  barrierDismissible: false,
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      backgroundColor: Constants().backGroundColor,
+                      title: Text("Logout", style: AppTextStyles.medium),
+                      content: Text(
+                        "Are you sure you want to logout?",
+                        style: AppTextStyles.small,
+                      ),
+                      actions: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.cancel, color: Colors.red),
+                        ),
+                        IconButton(
+                          onPressed: () async {
+                            await authService.signOut();
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (context) => const LoginPage(),
+                              ),
+                                  (route) => false,
+                            );
+                          },
+                          icon: const Icon(Icons.done, color: Colors.green),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 5,
+              ),
+              leading: const Icon(
+                CupertinoIcons.square_arrow_right,
+                color: Colors.white,
+              ),
+              title: Text("L  O G O U T",style: AppTextStyles.medium),
+            ),
+          ],
+        ),
+      ),
+      body: groupList(),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateGroupDialog(),
-        backgroundColor: Constants().primaryColor,
-        elevation: 4,
-        child: const Icon(Icons.add, size: 28),
+        onPressed: () {
+          popUpDialog(context);
+        },
+        elevation: 0,
+        backgroundColor: Colors.black,
+        child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
   }
 
-  void _showCreateGroupDialog() {
-    showModalBottomSheet(
+  void popUpDialog(BuildContext context) {
+    showDialog(
+      barrierDismissible: false,
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          decoration: BoxDecoration(
-            color: Constants().backGroundColor,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(25),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Create New Group",
-                  style: AppTextStyles.large.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  onChanged: (val) => groupName = val,
-                  style: AppTextStyles.medium,
-                  decoration: InputDecoration(
-                    hintText: "Group name",
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.1),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide.none,
+        return StatefulBuilder(
+          builder: ((context, setState) {
+            return AlertDialog(
+              backgroundColor: Constants().backGroundColor,
+              title: Text("Create a group", style: TextStyle(color: Colors.black),),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _isLoading
+                      ? Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[800],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: Text(
-                          "Cancel",
-                          style: AppTextStyles.medium,
-                        ),
+                  )
+                      : TextField(
+                    onChanged: (val) {
+                      setState(() {
+                        groupName = val;
+                      });
+                    },
+                    style: const TextStyle(color: Colors.black),
+                    decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.red),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (groupName.isNotEmpty) {
-                            setState(() => _isLoading = true);
-                            await DatabaseService(
-                              uid: FirebaseAuth.instance.currentUser!.uid,
-                            ).createGroup(
-                              userName,
-                              FirebaseAuth.instance.currentUser!.uid,
-                              groupName,
-                            );
-                            setState(() => _isLoading = false);
-                            Navigator.pop(context);
-                            showSnackbar(
-                              context,
-                              Colors.green,
-                              "Group created successfully",
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Constants().primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                            : Text(
-                          "Create",
-                          style: AppTextStyles.medium,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                  ),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (groupName.isNotEmpty) {
+                      setState(() => _isLoading = true);
+                      await DatabaseService(
+                        uid: FirebaseAuth.instance.currentUser!.uid,
+                      ).createGroup(
+                        userName,
+                        FirebaseAuth.instance.currentUser!.uid,
+                        groupName,
+                      );
+                      _isLoading = false;
+                      Navigator.of(context).pop();
+                      showSnackbar(
+                        context,
+                        Colors.green,
+                        "Group created successfully.",
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                  ),
+                  child: const Text(
+                    "Create",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
-            ),
-          ),
+            );
+          }),
         );
       },
     );
   }
 
+  Widget groupList() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: groups,
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final groupList = data['groups'] ?? [];
+
+          if (groupList.isNotEmpty) {
+            return ListView.builder(
+              itemCount: groupList.length,
+              itemBuilder: (context, index) {
+                int reverseIndex = groupList.length - index - 1;
+                return GroupTile(
+                  groupId: getId(groupList[reverseIndex]),
+                  groupName: getName(groupList[reverseIndex]).toUpperCase(),
+                  userName: data['fullName'],
+                );
+              },
+            );
+          } else {
+            return noGroupWidget();
+          }
+        } else {
+          return Center(
+            child: CircularProgressIndicator(
+              color: Theme.of(context).primaryColor,
+            ),
+          );
+        }
+      },
+    );
+  }
+
   Widget noGroupWidget() {
-    return Padding(
-      padding: const EdgeInsets.all(32),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/images/empty_groups.png', // Add your own asset
-            width: 200,
-            height: 200,
+          GestureDetector(
+            onTap: () {
+              popUpDialog(context);
+            },
+            child: Icon(Icons.add_circle, color: Colors.white, size: 75),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           Text(
-            "No Groups Yet",
-            style: AppTextStyles.large.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "Tap the + button to create your first group or search for existing ones",
-            style: AppTextStyles.medium.copyWith(
-              color: Colors.grey[400],
-            ),
+            "You've not joined any groups. Tap the add icon to create a group or search using the top search button.",
+            style: AppTextStyles.small,
             textAlign: TextAlign.center,
           ),
         ],

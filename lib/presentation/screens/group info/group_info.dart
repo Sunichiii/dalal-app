@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:groupie_v2/core/services/database_service.dart';
+import '../../../core/shared/constants.dart';
 import '../../../core/shared/textstyles.dart';
 import '../group_request/group_request_page.dart';
 import '../home/home_page.dart';
@@ -130,6 +131,7 @@ class _GroupInfoState extends State<GroupInfo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Constants().backGroundColor,
       appBar: GroupInfoWidgets.buildAppBar(
         context: context,
         isCurrentUserAdmin: isCurrentUserAdmin,

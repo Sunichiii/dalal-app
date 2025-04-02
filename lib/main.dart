@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:groupie_v2/data/sources/helper_function.dart';
 import 'package:groupie_v2/presentation/screens/chat/bloc/chat_bloc.dart';
 import 'package:groupie_v2/presentation/screens/home/home_page.dart';
+import 'package:groupie_v2/presentation/screens/search/bloc/search_bloc.dart';
 import 'core/services/auth_services.dart';
 import 'core/services/database_service.dart';
 import 'core/shared/constants.dart';
@@ -65,6 +66,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => RegisterBloc(authService: AuthService())),
         BlocProvider(create: (context) => LoginBloc(authService: AuthService())),
         BlocProvider(create: (context) => ChatBloc(databaseService: DatabaseService())),
+        BlocProvider<SearchBloc>(create: (context) => SearchBloc(db: DatabaseService()),),
       //  BlocProvider(create: (context) => HomeBloc(uid: userId)..add(FetchGroups())),
       ],
       child: MaterialApp(

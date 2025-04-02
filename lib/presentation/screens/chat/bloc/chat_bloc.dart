@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/services/database_service.dart';
@@ -35,17 +37,42 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
   }
 
-
-  void _onSendMessage(SendMessage event, Emitter<ChatState> emit) {
+  void _onSendMessage(SendMessage event, Emitter<ChatState> emit) async {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? "unknown";
     final fullSender = "${userId}_${event.userName}";
 
+    // Check if the message is media (image/video) based on the file extension
+    String messageType = event.message.contains(RegExp(r'\.(jpg|jpeg|png|gif|mp4)$')) ? 'media' : 'text';
+
     if (event.message.isNotEmpty) {
-      databaseService.sendMessage(event.groupId, {
-        "message": event.message,
-        "sender": fullSender,
-        "time": DateTime.now().millisecondsSinceEpoch,
-      });
+      // If it's a media message, upload to Firebase Storage and get the media URL
+      if (messageType == 'media') {
+        try {
+          // Check if it's an image or video (determine this when sending the media)
+          File mediaFile = File(event.message);  // Assuming event.message holds the file path
+          String mediaUrl = await DatabaseService(uid: FirebaseAuth.instance.currentUser?.uid)
+              .uploadMedia(mediaFile); // Upload media and get the URL
+
+          // Send message with media URL and type 'media'
+          await databaseService.sendMessage(event.groupId, {
+            "message": mediaUrl,  // Store the URL of the media
+            "sender": fullSender,
+            "time": DateTime.now().millisecondsSinceEpoch,
+            "type": 'media',  // Mark this as media
+          });
+        } catch (e) {
+          print("Error uploading media: $e");
+        }
+      } else {
+        // Send a text message
+        await databaseService.sendMessage(event.groupId, {
+          "message": event.message,
+          "sender": fullSender,
+          "time": DateTime.now().millisecondsSinceEpoch,
+          "type": 'text',  // Mark this as text
+        });
+      }
     }
   }
+
 }
