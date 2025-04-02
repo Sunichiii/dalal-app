@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,6 @@ import '../../widgets/group_tile.dart';
 import '../../widgets/widgets.dart';
 import '../profile/profile_page.dart';
 import '../search/search_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,7 +23,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String userName = "";
   String email = "";
-  AuthService authService = AuthService();
+  final AuthService authService = AuthService();
   Stream<DocumentSnapshot>? groups;
   bool _isLoading = false;
   String groupName = "";
@@ -34,38 +34,30 @@ class _HomePageState extends State<HomePage> {
     gettingUserData();
   }
 
-  // string manipulation
   String getId(String res) => res.substring(0, res.indexOf("_"));
 
   String getName(String res) => res.substring(res.indexOf("_") + 1);
 
-  gettingUserData() async {
+  Future<void> gettingUserData() async {
     email = (await HelperFunctions.getUserEmailSF()) ?? "";
     userName = (await HelperFunctions.getUserNameSF()) ?? "";
 
-    // Get user groups as stream
-    final groupStream =
-        DatabaseService(
-          uid: FirebaseAuth.instance.currentUser!.uid,
-        ).getUserGroups();
+    groups = DatabaseService(
+      uid: FirebaseAuth.instance.currentUser!.uid,
+    ).getUserGroups();
 
-    setState(() {
-      groups = groupStream;
-    });
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Constants().backGroundColor,
-      //Constants().backgroundColor,
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            onPressed: () {
-              nextScreen(context, const SearchPage());
-            },
+            onPressed: () => nextScreen(context, const SearchPage()),
             icon: const Icon(Icons.search, color: Colors.white),
           ),
         ],
@@ -82,34 +74,27 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       drawer: Drawer(
-        backgroundColor: Constants().backGroundColor,
+        backgroundColor: Colors.grey[900],
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 50),
-          children: <Widget>[
-            Icon(
+          children: [
+            const Icon(
               CupertinoIcons.person_circle_fill,
               size: 120,
-              color: Constants().primaryColor,
+              color: Colors.white,
             ),
             const SizedBox(height: 15),
-            Text(
-              userName,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.medium,
-            ),
-            SizedBox(height: 20),
-            Divider(height: 2),
+            Text(userName, textAlign: TextAlign.center, style: AppTextStyles.medium),
+            const SizedBox(height: 20),
+            const Divider(height: 2),
             const SizedBox(height: 30),
             ListTile(
               onTap: () {},
               selectedColor: Theme.of(context).primaryColor,
               selected: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 5,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
               leading: const Icon(CupertinoIcons.group, color: Colors.white),
-              title: Text(" G R O U P S", style: AppTextStyles.medium),
+              title: Text("G R O U P S", style: AppTextStyles.medium),
             ),
             ListTile(
               onTap: () {
@@ -118,15 +103,12 @@ class _HomePageState extends State<HomePage> {
                   ProfilePage(userName: userName, email: email),
                 );
               },
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 5,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
               leading: const Icon(CupertinoIcons.person, color: Colors.white),
               title: Text("P R O F I L E", style: AppTextStyles.medium),
             ),
             ListTile(
-              onTap: () async {
+              onTap: () {
                 showDialog(
                   barrierDismissible: false,
                   context: context,
@@ -134,10 +116,7 @@ class _HomePageState extends State<HomePage> {
                     return AlertDialog(
                       backgroundColor: Constants().backGroundColor,
                       title: Text("Logout", style: AppTextStyles.medium),
-                      content: Text(
-                        "Are you sure you want to logout?",
-                        style: AppTextStyles.small,
-                      ),
+                      content: Text("Are you sure you want to logout?", style: AppTextStyles.small),
                       actions: [
                         IconButton(
                           onPressed: () => Navigator.pop(context),
@@ -147,10 +126,8 @@ class _HomePageState extends State<HomePage> {
                           onPressed: () async {
                             await authService.signOut();
                             Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                              (route) => false,
+                              MaterialPageRoute(builder: (context) => const LoginPage()),
+                                  (route) => false,
                             );
                           },
                           icon: const Icon(Icons.done, color: Colors.green),
@@ -160,26 +137,18 @@ class _HomePageState extends State<HomePage> {
                   },
                 );
               },
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 5,
-              ),
-              leading: const Icon(
-                CupertinoIcons.square_arrow_right,
-                color: Colors.white,
-              ),
-              title: Text("L  O G O U T", style: AppTextStyles.medium),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+              leading: const Icon(CupertinoIcons.square_arrow_right, color: Colors.white),
+              title: Text("L O G O U T", style: AppTextStyles.medium),
             ),
           ],
         ),
       ),
       body: groupList(),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          popUpDialog(context);
-        },
+        onPressed: () => popUpDialog(context),
         elevation: 0,
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Colors.black,
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
@@ -194,38 +163,34 @@ class _HomePageState extends State<HomePage> {
           builder: ((context, setState) {
             return AlertDialog(
               backgroundColor: Constants().backGroundColor,
-              title: Text("Create a group", style: AppTextStyles.medium),
+              title: const Text("Create a group", style: TextStyle(color: Colors.black)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _isLoading
                       ? Center(
-                        child: CircularProgressIndicator(
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      )
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  )
                       : TextField(
-                        onChanged: (val) {
-                          setState(() {
-                            groupName = val;
-                          });
-                        },
-                        style: const TextStyle(color: Colors.black),
-                        decoration: InputDecoration(
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Colors.red),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.white),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
+                    onChanged: (val) => setState(() => groupName = val),
+                    style: const TextStyle(color: Colors.black),
+                    decoration: InputDecoration(
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.black),
+                        borderRadius: BorderRadius.circular(20),
                       ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.red),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               actions: [
@@ -234,10 +199,7 @@ class _HomePageState extends State<HomePage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
-                  child: const Text(
-                    "Cancel",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text("Cancel", style: TextStyle(color: Colors.white)),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -252,20 +214,13 @@ class _HomePageState extends State<HomePage> {
                       );
                       _isLoading = false;
                       Navigator.of(context).pop();
-                      showSnackbar(
-                        context,
-                        Colors.green,
-                        "Group created successfully.",
-                      );
+                      showSnackbar(context, Colors.green, "Group created successfully.");
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
-                  child: const Text(
-                    "Create",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text("Create", style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -300,9 +255,7 @@ class _HomePageState extends State<HomePage> {
           }
         } else {
           return Center(
-            child: CircularProgressIndicator(
-              color: Theme.of(context).primaryColor,
-            ),
+            child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
           );
         }
       },
@@ -317,10 +270,8 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: () {
-              popUpDialog(context);
-            },
-            child: Icon(Icons.add_circle, color: Colors.white, size: 75),
+            onTap: () => popUpDialog(context),
+            child: const Icon(Icons.add_circle, color: Colors.white, size: 75),
           ),
           const SizedBox(height: 20),
           Text(

@@ -1,17 +1,19 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:groupie_v2/core/shared/textstyles.dart';
 import '../../../core/services/auth_services.dart';
-import '../../../core/services/database_service.dart';
-import '../../../data/sources/helper_function.dart';
 import '../../../logic/auth/login/login_page.dart';
 import '../../widgets/group_tile.dart';
 import '../../widgets/widgets.dart';
 import '../profile/profile_page.dart';
 import '../search/search_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'bloc/home_bloc.dart';
+import 'bloc/home_event.dart';
+import 'bloc/home_state.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,51 +23,25 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String userName = "";
-  String email = "";
-  AuthService authService = AuthService();
-  Stream<DocumentSnapshot>? groups;
-  bool _isLoading = false;
   String groupName = "";
+  final authService = AuthService();
+  final user = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
-    gettingUserData();
-  }
-
-  // string manipulation
-  String getId(String res) => res.substring(0, res.indexOf("_"));
-
-  String getName(String res) => res.substring(res.indexOf("_") + 1);
-
-  gettingUserData() async {
-    email = (await HelperFunctions.getUserEmailSF()) ?? "";
-    userName = (await HelperFunctions.getUserNameSF()) ?? "";
-
-    // Get user groups as stream
-    final groupStream =
-    DatabaseService(
-      uid: FirebaseAuth.instance.currentUser!.uid,
-    ).getUserGroups();
-
-    setState(() {
-      groups = groupStream;
-    });
+    context.read<HomeBloc>().add(LoadUserData());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Constants().backGroundColor,
-      //Constants().backgroundColor,
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            onPressed: () {
-              nextScreen(context, const SearchPage());
-            },
+            onPressed: () => nextScreen(context, const SearchPage()),
             icon: const Icon(Icons.search, color: Colors.white),
           ),
         ],
@@ -81,203 +57,116 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      drawer: Drawer(
-        backgroundColor: Colors.grey[900],
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 50),
-          children: <Widget>[
-            Icon(
-              CupertinoIcons.person_circle_fill,
-              size: 120,
-              color: Colors.white,
-            ),
-            const SizedBox(height: 15),
-            Text(
-              userName,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.medium,
-            ),
-            SizedBox(height: 20),
-            Divider(height: 2),
-            const SizedBox(height: 30),
-            ListTile(
-              onTap: () {},
-              selectedColor: Theme.of(context).primaryColor,
-              selected: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 5,
-              ),
-              leading: const Icon(CupertinoIcons.group, color: Colors.white),
-              title: Text(" G R O U P S",style: AppTextStyles.medium),
-            ),
-            ListTile(
-              onTap: () {
-                nextScreenReplaced(
-                  context,
-                  ProfilePage(userName: userName, email: email),
-                );
-              },
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 5,
-              ),
-              leading: const Icon(CupertinoIcons.person, color: Colors.white),
-              title: Text("P R O F I L E", style: AppTextStyles.medium),
-            ),
-            ListTile(
-              onTap: () async {
-                showDialog(
-                  barrierDismissible: false,
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      backgroundColor: Constants().backGroundColor,
-                      title: Text("Logout", style: AppTextStyles.medium),
-                      content: Text(
-                        "Are you sure you want to logout?",
-                        style: AppTextStyles.small,
-                      ),
-                      actions: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.cancel, color: Colors.red),
-                        ),
-                        IconButton(
-                          onPressed: () async {
-                            await authService.signOut();
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                                  (route) => false,
-                            );
-                          },
-                          icon: const Icon(Icons.done, color: Colors.green),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 5,
-              ),
-              leading: const Icon(
-                CupertinoIcons.square_arrow_right,
-                color: Colors.white,
-              ),
-              title: Text("L  O G O U T",style: AppTextStyles.medium),
-            ),
-          ],
-        ),
-      ),
-      body: groupList(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          popUpDialog(context);
+      drawer: BlocBuilder<HomeBloc, HomeState>(
+        builder: (context, state) {
+          if (state is HomeLoaded) {
+            return buildDrawer(context, state.userName, state.email);
+          } else {
+            return const Drawer(child: Center(child: CircularProgressIndicator()));
+          }
         },
-        elevation: 0,
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.add, color: Colors.white, size: 30),
+      ),
+      body: BlocConsumer<HomeBloc, HomeState>(
+        listener: (context, state) {
+          if (state is HomeError) {
+            showSnackbar(context, Colors.red, state.message);
+          } else if (state is GroupCreated) {
+            showSnackbar(context, Colors.green, "Group created successfully.");
+          }
+        },
+        builder: (context, state) {
+          if (state is HomeLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is HomeLoaded) {
+            return groupList(state.groupsStream, state.userName);
+          } else {
+            return const Center(child: Text("Something went wrong"));
+          }
+        },
+      ),
+      floatingActionButton: BlocBuilder<HomeBloc, HomeState>(
+        builder: (context, state) {
+          if (state is HomeLoaded) {
+            return FloatingActionButton(
+              onPressed: () => popUpDialog(context, state.userName, state.email),
+              elevation: 0,
+              backgroundColor: Colors.black,
+              child: const Icon(Icons.add, color: Colors.white, size: 30),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
 
-  void popUpDialog(BuildContext context) {
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: ((context, setState) {
-            return AlertDialog(
-              backgroundColor: Constants().backGroundColor,
-              title: Text("Create a group", style: TextStyle(color: Colors.black),),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _isLoading
-                      ? Center(
-                    child: CircularProgressIndicator(
-                      color: Theme.of(context).primaryColor,
+  Widget buildDrawer(BuildContext context, String userName, String email) {
+    return Drawer(
+      backgroundColor: Colors.grey[900],
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 50),
+        children: [
+          const Icon(CupertinoIcons.person_circle_fill, size: 120, color: Colors.white),
+          const SizedBox(height: 15),
+          Text(userName, textAlign: TextAlign.center, style: AppTextStyles.medium),
+          const SizedBox(height: 20),
+          const Divider(height: 2),
+          const SizedBox(height: 30),
+          ListTile(
+            selected: true,
+            selectedColor: Theme.of(context).primaryColor,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+            leading: const Icon(CupertinoIcons.group, color: Colors.white),
+            title: Text("G R O U P S", style: AppTextStyles.medium),
+          ),
+          ListTile(
+            onTap: () {
+              nextScreenReplaced(context, ProfilePage(userName: userName, email: email));
+            },
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+            leading: const Icon(CupertinoIcons.person, color: Colors.white),
+            title: Text("P R O F I L E", style: AppTextStyles.medium),
+          ),
+          ListTile(
+            onTap: () {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  backgroundColor: Constants().backGroundColor,
+                  title: Text("Logout", style: AppTextStyles.medium),
+                  content: Text("Are you sure you want to logout?", style: AppTextStyles.small),
+                  actions: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.cancel, color: Colors.red),
                     ),
-                  )
-                      : TextField(
-                    onChanged: (val) {
-                      setState(() {
-                        groupName = val;
-                      });
-                    },
-                    style: const TextStyle(color: Colors.black),
-                    decoration: InputDecoration(
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.red),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                    IconButton(
+                      onPressed: () async {
+                        await authService.signOut();
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                              (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.done, color: Colors.green),
                     ),
-                  ),
-                ],
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                  ),
-                  child: const Text(
-                    "Cancel",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  ],
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (groupName.isNotEmpty) {
-                      setState(() => _isLoading = true);
-                      await DatabaseService(
-                        uid: FirebaseAuth.instance.currentUser!.uid,
-                      ).createGroup(
-                        userName,
-                        FirebaseAuth.instance.currentUser!.uid,
-                        groupName,
-                      );
-                      _isLoading = false;
-                      Navigator.of(context).pop();
-                      showSnackbar(
-                        context,
-                        Colors.green,
-                        "Group created successfully.",
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                  ),
-                  child: const Text(
-                    "Create",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          }),
-        );
-      },
+              );
+            },
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+            leading: const Icon(CupertinoIcons.square_arrow_right, color: Colors.white),
+            title: Text("L O G O U T", style: AppTextStyles.medium),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget groupList() {
+  Widget groupList(Stream<DocumentSnapshot> stream, String userName) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: groups,
+      stream: stream,
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -289,9 +178,9 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (context, index) {
                 int reverseIndex = groupList.length - index - 1;
                 return GroupTile(
-                  groupId: getId(groupList[reverseIndex]),
-                  groupName: getName(groupList[reverseIndex]).toUpperCase(),
-                  userName: data['fullName'],
+                  groupId: groupList[reverseIndex].split('_')[0],
+                  groupName: groupList[reverseIndex].split('_')[1],
+                  userName: userName,
                 );
               },
             );
@@ -299,11 +188,7 @@ class _HomePageState extends State<HomePage> {
             return noGroupWidget();
           }
         } else {
-          return Center(
-            child: CircularProgressIndicator(
-              color: Theme.of(context).primaryColor,
-            ),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
       },
     );
@@ -317,16 +202,65 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: () {
-              popUpDialog(context);
-            },
-            child: Icon(Icons.add_circle, color: Colors.white, size: 75),
+            onTap: () => context.read<HomeBloc>().add(LoadUserData()),
+            child: const Icon(Icons.add_circle, color: Colors.white, size: 75),
           ),
           const SizedBox(height: 20),
           Text(
             "You've not joined any groups. Tap the add icon to create a group or search using the top search button.",
             style: AppTextStyles.small,
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void popUpDialog(BuildContext context, String userName, String email) {
+    String newGroupName = "";
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Constants().backGroundColor,
+        title: const Text("Create a group", style: TextStyle(color: Colors.black)),
+        content: TextField(
+          onChanged: (val) => newGroupName = val,
+          style: const TextStyle(color: Colors.black),
+          decoration: InputDecoration(
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.black),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.white),
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (newGroupName.isNotEmpty) {
+                Navigator.of(context).pop();
+                context.read<HomeBloc>().add(CreateGroup(
+                  groupName: newGroupName,
+                  userId: user!.uid,
+                  userName: userName,
+                ));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
+            child: const Text("Create", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

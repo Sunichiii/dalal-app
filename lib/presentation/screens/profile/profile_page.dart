@@ -10,7 +10,11 @@ class ProfilePage extends StatefulWidget {
   final String userName;
   final String email;
 
-  const ProfilePage({super.key, required this.email, required this.userName});
+  const ProfilePage({
+    super.key,
+    required this.email,
+    required this.userName,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -58,10 +62,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               color: Colors.grey[850],
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 25,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
                 child: Column(
                   children: [
                     Row(
@@ -73,16 +74,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(widget.userName, style: AppTextStyles.medium),
                       ],
                     ),
-                    const Divider(
-                      height: 30,
-                      thickness: 0.5,
-                      color: Colors.white24,
-                    ),
+                    const Divider(height: 30, thickness: 0.5, color: Colors.white24),
                     Row(
                       children: [
                         const Icon(Icons.email, color: Colors.white),
                         const SizedBox(width: 10),
-                        Text("Email", style: AppTextStyles.small),
+                        Text("Email", style: AppTextStyles.medium),
                         const Spacer(),
                         Flexible(
                           child: Text(
