@@ -9,9 +9,9 @@ class AuthService {
   //Login with email and password
   // Register user with email and password
   Future<Object?> loginWithEmailAndPassword(
-      String email,
-      String password,
-      ) async {
+    String email,
+    String password,
+  ) async {
     try {
       UserCredential userCredential = await firebaseAuth
           .signInWithEmailAndPassword(email: email, password: password);
@@ -23,7 +23,9 @@ class AuthService {
         await HelperFunctions.saveUserEmailSF(email);
 
         // Fetch full name from Firestore
-        var userData = await DatabaseService(uid: user.uid).gettingUserData(email);
+        var userData = await DatabaseService(
+          uid: user.uid,
+        ).gettingUserData(email);
         if (userData.docs.isNotEmpty) {
           await HelperFunctions.saveUserNameSF(userData.docs[0]['fullName']);
         }
@@ -40,13 +42,12 @@ class AuthService {
     }
   }
 
-
   // Register user with email and password
   Future<Object?> registerUserWithEmailAndPassword(
-      String fullName,
-      String email,
-      String password,
-      ) async {
+    String fullName,
+    String email,
+    String password,
+  ) async {
     try {
       UserCredential userCredential = await firebaseAuth
           .createUserWithEmailAndPassword(email: email, password: password);
@@ -72,7 +73,6 @@ class AuthService {
       return false;
     }
   }
-
 
   // Sign out user
   Future<void> signOut() async {

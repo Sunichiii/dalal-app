@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:groupie_v2/core/shared/constants.dart';
-import '../screens/chat/bloc/chat_page_widgets.dart';
 
 class MessageTile extends StatelessWidget {
   final String message;
   final String sender;
   final bool sentByMe;
   final String time;
-  final String messageType; // Add messageType (text/media)
 
   const MessageTile({
     super.key,
@@ -15,7 +13,6 @@ class MessageTile extends StatelessWidget {
     required this.sender,
     required this.sentByMe,
     required this.time,
-    required this.messageType, // Make sure to pass messageType from ChatPage
   });
 
   @override
@@ -27,21 +24,22 @@ class MessageTile extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: sentByMe ? Constants().primaryColor : Colors.grey[700],
-          borderRadius: sentByMe
-              ? const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            topRight: Radius.circular(10),
-            bottomLeft: Radius.circular(10),
-          )
-              : const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            topRight: Radius.circular(10),
-            bottomRight: Radius.circular(10),
-          ),
+          borderRadius:
+              sentByMe
+                  ? const BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
+                    bottomLeft: Radius.circular(10),
+                  )
+                  : const BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
         ),
         child: Column(
           crossAxisAlignment:
-          sentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              sentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
               sender,
@@ -52,25 +50,12 @@ class MessageTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 5),
-            messageType == 'text'
-                ? Text(
+            Text(
               message,
               style: const TextStyle(fontSize: 16, color: Colors.white),
-            )
-                : messageType == 'media'
-                ? SizedBox(
-              width: 150,
-              height: 150,
-              child: message.contains('mp4') // For videos
-                  ? VideoPlayerWidget(url: message)
-                  : Image.network(message), // For images
-            )
-                : Container(),
+            ),
             SizedBox(height: 3),
-            Text(
-              time,
-              style: TextStyle(color: Colors.white, fontSize: 9),
-            )
+            Text(time, style: TextStyle(color: Colors.white, fontSize: 9),)
           ],
         ),
       ),

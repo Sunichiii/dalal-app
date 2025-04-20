@@ -39,21 +39,25 @@ class DatabaseService {
     });
   }
 
-  // Method to send a media message (image/video)
-  Future<void> sendMediaMessage(String groupId, File mediaFile, String sender) async {
+  // Method to send a media message (image/video) ********************changes made here
+  Future<void> sendMediaMessage(String groupId, String mediaUrl, String sender, String mediaType) async {
     try {
-      String mediaUrl = await uploadMedia(mediaFile);
-
-      await sendMessage(groupId, {
-        'message': mediaUrl, // Store the URL of the media
+      await groupCollection.doc(groupId).collection("messages").add({
+        'message': mediaUrl,  // Store the URL of the media
         'sender': sender,
         'time': FieldValue.serverTimestamp(),
-        'type': 'media', // Mark this message as media
+        'type': mediaType,  // Store the media type (video or image)
+      });
+      await groupCollection.doc(groupId).update({
+        "recentMessage": mediaUrl,
+        "recentMessageSender": sender,
+        "recentMessageTime": FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      throw Exception("Failed to send media message: $e");
+      print("Error sending media message: $e");
     }
   }
+
 
   Future<void> sendMessage(String groupId, Map<String, dynamic> chatMessageData) async {
     // Ensure required fields are present
