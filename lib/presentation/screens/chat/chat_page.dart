@@ -18,7 +18,6 @@ import 'bloc/chat_event.dart';
 import 'bloc/chat_page_widgets.dart';
 import 'bloc/chat_state.dart';
 
-
 class ChatPage extends StatefulWidget {
   final String groupId;
   final String groupName;
@@ -43,7 +42,7 @@ class _ChatPageState extends State<ChatPage> {
   String mediaPreview = '';
   bool isUploading = false;
   double uploadProgress = 0.0;
-  String mediaType ='';
+  String mediaType = '';
 
   final ImagePicker _picker = ImagePicker();
 
@@ -55,7 +54,6 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _pickMedia() async {
     try {
-      // Allow multiple media selection (images and videos)
       final List<XFile>? pickedFiles = await _picker.pickMultipleMedia(
         imageQuality: 85,
         requestFullMetadata: false,
@@ -65,22 +63,19 @@ class _ChatPageState extends State<ChatPage> {
         setState(() {
           isUploading = true;
           uploadProgress = 0.0;
-          // Show preview of first selected file
           mediaPreview = pickedFiles.first.path;
         });
 
-        // Process each file sequentially
         for (final pickedFile in pickedFiles) {
           try {
             final File mediaFile = File(pickedFile.path);
             print('Starting upload for: ${pickedFile.name}');
 
-            // Upload to backend
             final mediaUrl = await _uploadMediaToBackend(mediaFile);
 
-            // Send message to chat
             await DatabaseService(
-              uid: FirebaseAuth.instance.currentUser?.uid,).sendMediaMessage(
+              uid: FirebaseAuth.instance.currentUser?.uid,
+            ).sendMediaMessage(
               widget.groupId,
               mediaUrl,
               widget.userName,
@@ -119,21 +114,20 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-
   Future<String> _uploadMediaToBackend(File mediaFile) async {
     try {
       const backendUrl = 'http://192.168.1.69:8000/api/uploadmedia';
       print('Uploading to: $backendUrl');
 
       var request = http.MultipartRequest('POST', Uri.parse(backendUrl));
+
       request.files.add(
         await http.MultipartFile.fromPath(
           'file',
           mediaFile.path,
-          contentType:
-              mediaFile.path.endsWith('.mp4')
-                  ? MediaType('video', 'mp4')
-                  : MediaType('image', 'jpeg'),
+          contentType: mediaFile.path.endsWith('.mp4')
+              ? MediaType('video', 'mp4')
+              : MediaType('image', 'jpeg'),
         ),
       );
 
@@ -143,40 +137,49 @@ class _ChatPageState extends State<ChatPage> {
         'mediaType': mediaFile.path.endsWith('.mp4') ? 'video' : 'image',
       });
 
-      // Track upload progress
+      // Track upload progress manually
       final response = await request.send();
       final contentLength = response.contentLength ?? 0;
       int bytesUploaded = 0;
+      final chunks = <List<int>>[];
 
-      response.stream.listen(
-        (List<int> chunk) {
+      // Process stream only once
+      await response.stream.listen(
+            (List<int> chunk) {
           bytesUploaded += chunk.length;
+          chunks.add(chunk);
           setState(() {
             uploadProgress = bytesUploaded / contentLength;
           });
         },
-        onDone: () {
-          print('Upload completed');
-        },
-        onError: (e) {
-          print('Upload error: $e');
-          throw Exception('Upload failed');
-        },
-      );
+        onError: (e) => throw Exception('Upload error: $e'),
+        cancelOnError: true,
+      ).asFuture();
 
-      final responseData = await http.Response.fromStream(response);
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${responseData.body}');
+      // Get response data from collected chunks
+      final responseData = await http.Response.fromStream(
+        http.StreamedResponse(
+          Stream.value(chunks.expand((x) => x).toList()),
+          response.statusCode,
+          contentLength: contentLength,
+          request: response.request,
+          headers: response.headers,
+          isRedirect: response.isRedirect,
+          persistentConnection: response.persistentConnection,
+          reasonPhrase: response.reasonPhrase,
+        ),
+      );
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(responseData.body);
         final filePath = jsonResponse['filePath'];
-        print('File uploaded successfully. Path: $filePath');
-        return filePath;
+        String fullUrl = filePath.startsWith('http')
+            ? filePath
+            : 'http://192.168.1.69:8000$filePath';
+        print('File uploaded successfully. Path: $fullUrl');
+        return fullUrl;
       } else {
-        throw Exception(
-          'Server error: ${response.statusCode} - ${responseData.body}',
-        );
+        throw Exception('Server error: ${response.statusCode} - ${responseData.body}');
       }
     } catch (e) {
       print('Upload error: $e');
@@ -223,20 +226,18 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           Column(
             children: [
-              Expanded(child: chatMessages()), // Displays chat messages
+              Expanded(child: chatMessages()),
               isEmojiVisible
                   ? EmojiPicker(
                 onEmojiSelected: (category, emoji) {
-                  messageController.text += emoji.emoji; // Add emoji to text input
-                  messageFocusNode.requestFocus(); // Ensure the focus is still on the input field
+                  messageController.text += emoji.emoji;
+                  messageFocusNode.requestFocus();
                 },
               )
-                  : Container(), // Show emoji picker if visible
-              messageInputField(), // Message input field
+                  : Container(),
+              messageInputField(),
             ],
           ),
-
-          // Upload progress indicator
           if (isUploading)
             Positioned(
               bottom: 80,
@@ -245,7 +246,7 @@ class _ChatPageState extends State<ChatPage> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -298,13 +299,13 @@ class _ChatPageState extends State<ChatPage> {
                   var messageData = snapshot.data.docs[index];
                   String sender = messageData['sender'];
                   String uid =
-                      sender.contains('_') ? sender.split('_')[0] : sender;
+                  sender.contains('_') ? sender.split('_')[0] : sender;
                   String displayName = state.anonMap[uid] ?? "Admin";
                   String currentUserId = FirebaseAuth.instance.currentUser!.uid;
                   bool sentByMe = sender.startsWith(currentUserId);
 
                   DateTime messageDateTime =
-                      DateTime.fromMillisecondsSinceEpoch(messageData['time']);
+                  DateTime.fromMillisecondsSinceEpoch(messageData['time']);
                   String formattedTime = DateFormat(
                     'hh:mm a',
                   ).format(messageDateTime);
@@ -318,57 +319,52 @@ class _ChatPageState extends State<ChatPage> {
                       if (messageType == 'media')
                         Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          child:
-                              message.contains('.mp4')
-                                  ? VideoPlayerWidget(url: message)
-                                  : Image.network(
-                                    message,
-                                    width: 250,
-                                    height: 250,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (
-                                      BuildContext context,
-                                      Widget child,
-                                      ImageChunkEvent? loadingProgress,
-                                    ) {
-                                      if (loadingProgress == null) return child;
-                                      return Container(
-                                        width: 250,
-                                        height: 250,
-                                        color: Colors.grey[200],
-                                        child: Center(
-                                          child: CircularProgressIndicator(
-                                            value:
-                                                loadingProgress
-                                                            .expectedTotalBytes !=
-                                                        null
-                                                    ? loadingProgress
-                                                            .cumulativeBytesLoaded /
-                                                        loadingProgress
-                                                            .expectedTotalBytes!
-                                                    : null,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    errorBuilder: (
-                                      BuildContext context,
-                                      Object error,
-                                      StackTrace? stackTrace,
-                                    ) {
-                                      return Container(
-                                        width: 250,
-                                        height: 250,
-                                        color: Colors.grey[200],
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      );
-                                    },
+                          child: message.contains('.mp4')
+                              ? VideoPlayerWidget(url: message)
+                              : Image.network(
+                            message,
+                            width: 250,
+                            height: 250,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (
+                                BuildContext context,
+                                Widget child,
+                                ImageChunkEvent? loadingProgress,
+                                ) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                width: 250,
+                                height: 250,
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress
+                                        .expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                        : null,
                                   ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (
+                                BuildContext context,
+                                Object error,
+                                StackTrace? stackTrace,
+                                ) {
+                              return Container(
+                                width: 250,
+                                height: 250,
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       if (messageType == 'text')
                         MessageTile(
@@ -417,15 +413,12 @@ class _ChatPageState extends State<ChatPage> {
       ),
       child: Row(
         children: [
-          // Media attachment button
           IconButton(
             icon: const Icon(Icons.attach_file),
             onPressed: isUploading ? null : _pickMedia,
             color: Constants().accentColor,
             tooltip: 'Attach media',
           ),
-
-          // Emoji button
           IconButton(
             icon: const Icon(Icons.emoji_emotions),
             onPressed: () {
@@ -441,8 +434,6 @@ class _ChatPageState extends State<ChatPage> {
             color: Constants().accentColor,
             tooltip: 'Emoji',
           ),
-
-          // Text input field
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -474,8 +465,6 @@ class _ChatPageState extends State<ChatPage> {
                       },
                     ),
                   ),
-
-                  // Show media preview thumbnail
                   if (mediaPreview.isNotEmpty && !isUploading)
                     Padding(
                       padding: const EdgeInsets.only(right: 8.0),
@@ -519,10 +508,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ),
-
           const SizedBox(width: 8),
-
-          // Send button
           GestureDetector(
             onTap: () async {
               if (messageController.text.isNotEmpty && !isUploading) {
@@ -540,10 +526,9 @@ class _ChatPageState extends State<ChatPage> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color:
-                    messageController.text.isNotEmpty && !isUploading
-                        ? Constants().accentColor
-                        : Colors.grey,
+                color: messageController.text.isNotEmpty && !isUploading
+                    ? Constants().accentColor
+                    : Colors.grey,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.send, color: Colors.white, size: 22),

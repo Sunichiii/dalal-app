@@ -40,11 +40,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? "unknown";
     final fullSender = "${userId}_${event.userName}";
 
-    // Check if the message is media (image/video) based on the file extension
     String messageType = event.message.contains(RegExp(r'\.(jpg|jpeg|png|gif|mp4)$')) ? 'media' : 'text';
 
     if (event.message.isNotEmpty) {
-      // If it's a media message, upload to Firebase Storage and get the media URL
       if (messageType == 'media') {
         try {
           // Check if it's an image or video (determine this when sending the media)

@@ -42,22 +42,49 @@ class DatabaseService {
   // Method to send a media message (image/video) ********************changes made here
   Future<void> sendMediaMessage(String groupId, String mediaUrl, String sender, String mediaType) async {
     try {
-      await groupCollection.doc(groupId).collection("messages").add({
-        'message': mediaUrl,  // Store the URL of the media
+      // 1. First print what we're trying to save
+      print('💾 Saving media message:');
+      print('URL: $mediaUrl');
+      print('Type: $mediaType');
+
+      // 2. Create the document with explicit fields
+      final messageData = {
+        'message': mediaUrl,
         'sender': sender,
-        'time': FieldValue.serverTimestamp(),
-        'type': mediaType,  // Store the media type (video or image)
-      });
+        'time': FieldValue.serverTimestamp(), // Keep this for proper sorting
+        'type': mediaType.toLowerCase(), // Ensure lowercase ('image' not 'Image')
+      };
+
+      // 3. Add to Firestore
+      final docRef = await groupCollection
+          .doc(groupId)
+          .collection("messages")
+          .add(messageData);
+
+      // 4. Verify what was actually saved
+      final savedDoc = await docRef.get();
+      print('✅ Saved document: ${savedDoc.data()}');
+
+      // 🔍 ADD THIS CHECK FOR NULL 'time'
+      if (savedDoc.data()?['time'] == null) {
+        print("⚠️ Saved doc has null 'time'. That'll break orderBy!");
+      }
+
+      // 5. Update recent message
       await groupCollection.doc(groupId).update({
         "recentMessage": mediaUrl,
         "recentMessageSender": sender,
         "recentMessageTime": FieldValue.serverTimestamp(),
       });
+
+      await fixBrokenMessages(groupId);
+
+
     } catch (e) {
-      print("Error sending media message: $e");
+      print("❌ Error sending media message: $e");
+      rethrow;
     }
   }
-
 
   Future<void> sendMessage(String groupId, Map<String, dynamic> chatMessageData) async {
     // Ensure required fields are present
@@ -65,7 +92,7 @@ class DatabaseService {
       'message': chatMessageData['message'] ?? '',
       'sender': chatMessageData['sender'] ?? 'unknown',
       'time': chatMessageData['time'] ?? FieldValue.serverTimestamp(),
-      'type': chatMessageData['type'] ?? 'text', // Default to text if missing
+      'type': chatMessageData['type'] ?? 'text',
     };
 
     await groupCollection.doc(groupId).collection("messages").add(messageData);
@@ -74,6 +101,9 @@ class DatabaseService {
       "recentMessageSender": messageData['sender'],
       "recentMessageTime": messageData['time'].toString(),
     });
+
+    await fixBrokenMessages(groupId);
+
   }
 
   // Save user data when account is created
@@ -126,7 +156,7 @@ class DatabaseService {
     return groupCollection
         .doc(groupId)
         .collection("messages")
-        .orderBy("time")
+        .orderBy("time", descending: true)
         .snapshots();
   }
 
@@ -289,6 +319,44 @@ class DatabaseService {
       });
     } catch (e) {
       print('Error updating old messages: $e');
+    }
+  }
+  //helping function
+  Future<void> fixBrokenMessages(String groupId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(groupId)
+          .collection('messages')
+          .get();
+
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data();
+
+        bool needsUpdate = false;
+        Map<String, dynamic> updateData = {};
+
+        if (!data.containsKey('time') || data['time'] == null) {
+          print('🛠 Fixing missing time for doc ${doc.id}');
+          updateData['time'] = FieldValue.serverTimestamp();
+          needsUpdate = true;
+        }
+
+        if (!data.containsKey('type') || data['type'] == null) {
+          print('🛠 Fixing missing type for doc ${doc.id}');
+          updateData['type'] = 'text'; // Default type
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await doc.reference.update(updateData);
+          print('✅ Updated doc ${doc.id}');
+        }
+      }
+
+      print('🎉 Fix complete!');
+    } catch (e) {
+      print('❌ Error while fixing messages: $e');
     }
   }
 
