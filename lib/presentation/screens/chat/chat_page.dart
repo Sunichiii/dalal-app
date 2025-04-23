@@ -313,13 +313,25 @@ class _ChatPageState extends State<ChatPage> {
       future: _fetchMediaDetails(getEndpointUrl),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Row(
+            mainAxisAlignment:
+            sentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: const [
+              Padding(
+                padding: EdgeInsets.all(8.0),
+                child: CircularProgressIndicator(),
+              ),
+            ],
+          );
         }
 
         if (snapshot.hasError || !snapshot.hasData) {
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: const Icon(Icons.error, color: Colors.red),
+          return Row(
+            mainAxisAlignment:
+            sentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: const [
+              Icon(Icons.error, color: Colors.red),
+            ],
           );
         }
 
@@ -327,34 +339,46 @@ class _ChatPageState extends State<ChatPage> {
         final mediaUrl = 'http://192.168.1.69:8000$mediaPath';
         final isVideo = mediaPath.endsWith('.mp4');
 
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: isVideo
-              ? VideoPlayerWidget(url: mediaUrl)
-              : Image.network(
-            mediaUrl,
-            width: 150,
-            height: 150,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value: progress.expectedTotalBytes != null
-                      ? progress.cumulativeBytesLoaded /
-                      progress.expectedTotalBytes!
-                      : null,
-                ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return const Icon(Icons.broken_image);
-            },
-          ),
+        return Row(
+          mainAxisAlignment:
+          sentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: isVideo
+                  ? VideoPlayerWidget(url: mediaUrl)
+                  : Image.network(
+                mediaUrl,
+                width: 150,
+                height: 150,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded /
+                          progress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.broken_image);
+                },
+              ),
+            ),
+          ],
         );
       },
     );
   }
+
 
   Widget _buildMessageInput() {
     return Container(
