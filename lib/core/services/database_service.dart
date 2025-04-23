@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class DatabaseService {
@@ -40,51 +41,25 @@ class DatabaseService {
   }
 
   // Method to send a media message (image/video) ********************changes made here
-  Future<void> sendMediaMessage(String groupId, String mediaUrl, String sender, String mediaType) async {
-    try {
-      // 1. First print what we're trying to save
-      print('💾 Saving media message:');
-      print('URL: $mediaUrl');
-      print('Type: $mediaType');
-
-      // 2. Create the document with explicit fields
-      final messageData = {
-        'message': mediaUrl,
-        'sender': sender,
-        'time': FieldValue.serverTimestamp(), // Keep this for proper sorting
-        'type': mediaType.toLowerCase(), // Ensure lowercase ('image' not 'Image')
-      };
-
-      // 3. Add to Firestore
-      final docRef = await groupCollection
-          .doc(groupId)
-          .collection("messages")
-          .add(messageData);
-
-      // 4. Verify what was actually saved
-      final savedDoc = await docRef.get();
-      print('✅ Saved document: ${savedDoc.data()}');
-
-      // 🔍 ADD THIS CHECK FOR NULL 'time'
-      if (savedDoc.data()?['time'] == null) {
-        print("⚠️ Saved doc has null 'time'. That'll break orderBy!");
-      }
-
-      // 5. Update recent message
-      await groupCollection.doc(groupId).update({
-        "recentMessage": mediaUrl,
-        "recentMessageSender": sender,
-        "recentMessageTime": FieldValue.serverTimestamp(),
-      });
-
-      await fixBrokenMessages(groupId);
-
-
-    } catch (e) {
-      print("❌ Error sending media message: $e");
-      rethrow;
-    }
+  Future<void> sendMediaMessage(
+      String groupId,
+      String mediaUrl, // This is now the GET endpoint URL
+      String userName,
+      String mediaType,
+      ) async {
+    await FirebaseFirestore.instance
+        .collection('groups')
+        .doc(groupId)
+        .collection('messages')
+        .add({
+      'message': mediaUrl, // Store the GET endpoint URL
+      'type': 'media',
+      'mediaType': mediaType,
+      'sender': '${FirebaseAuth.instance.currentUser!.uid}_$userName',
+      'time': DateTime.now().millisecondsSinceEpoch,
+    });
   }
+
 
   Future<void> sendMessage(String groupId, Map<String, dynamic> chatMessageData) async {
     // Ensure required fields are present

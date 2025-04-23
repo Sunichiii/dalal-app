@@ -42,7 +42,6 @@ class _ChatPageState extends State<ChatPage> {
   String mediaPreview = '';
   bool isUploading = false;
   double uploadProgress = 0.0;
-  String mediaType = '';
 
   final ImagePicker _picker = ImagePicker();
 
@@ -71,13 +70,20 @@ class _ChatPageState extends State<ChatPage> {
             final File mediaFile = File(pickedFile.path);
             print('Starting upload for: ${pickedFile.name}');
 
-            final mediaUrl = await _uploadMediaToBackend(mediaFile);
+            // Upload media and get mediaId
+            final mediaId = await _uploadMediaToBackend(mediaFile);
+            print('Received mediaId: $mediaId');
 
+            // Construct GET endpoint URL
+            final getEndpointUrl = 'http://192.168.1.69:8000/api/media/$mediaId';
+            print('Using GET endpoint: $getEndpointUrl');
+
+            // Store in Firestore
             await DatabaseService(
               uid: FirebaseAuth.instance.currentUser?.uid,
             ).sendMediaMessage(
               widget.groupId,
-              mediaUrl,
+              getEndpointUrl,
               widget.userName,
               pickedFile.path.endsWith('.mp4') ? 'video' : 'image',
             );
@@ -120,7 +126,6 @@ class _ChatPageState extends State<ChatPage> {
       print('Uploading to: $backendUrl');
 
       var request = http.MultipartRequest('POST', Uri.parse(backendUrl));
-
       request.files.add(
         await http.MultipartFile.fromPath(
           'file',
@@ -137,52 +142,34 @@ class _ChatPageState extends State<ChatPage> {
         'mediaType': mediaFile.path.endsWith('.mp4') ? 'video' : 'image',
       });
 
-      // Track upload progress manually
       final response = await request.send();
-      final contentLength = response.contentLength ?? 0;
-      int bytesUploaded = 0;
-      final chunks = <List<int>>[];
-
-      // Process stream only once
-      await response.stream.listen(
-            (List<int> chunk) {
-          bytesUploaded += chunk.length;
-          chunks.add(chunk);
-          setState(() {
-            uploadProgress = bytesUploaded / contentLength;
-          });
-        },
-        onError: (e) => throw Exception('Upload error: $e'),
-        cancelOnError: true,
-      ).asFuture();
-
-      // Get response data from collected chunks
-      final responseData = await http.Response.fromStream(
-        http.StreamedResponse(
-          Stream.value(chunks.expand((x) => x).toList()),
-          response.statusCode,
-          contentLength: contentLength,
-          request: response.request,
-          headers: response.headers,
-          isRedirect: response.isRedirect,
-          persistentConnection: response.persistentConnection,
-          reasonPhrase: response.reasonPhrase,
-        ),
-      );
+      final responseData = await http.Response.fromStream(response);
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(responseData.body);
-        final filePath = jsonResponse['filePath'];
-        String fullUrl = filePath.startsWith('http')
-            ? filePath
-            : 'http://192.168.1.69:8000$filePath';
-        print('File uploaded successfully. Path: $fullUrl');
-        return fullUrl;
+        final mediaId = jsonResponse['mediaId'];
+        if (mediaId == null) throw Exception('No mediaId received');
+        return mediaId;
       } else {
         throw Exception('Server error: ${response.statusCode} - ${responseData.body}');
       }
     } catch (e) {
       print('Upload error: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchMediaDetails(String getEndpointUrl) async {
+    try {
+      print('Fetching media details from: $getEndpointUrl');
+      final response = await http.get(Uri.parse(getEndpointUrl));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to fetch media details');
+      }
+    } catch (e) {
+      print('Error fetching media details: $e');
       rethrow;
     }
   }
@@ -226,53 +213,24 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           Column(
             children: [
-              Expanded(child: chatMessages()),
-              isEmojiVisible
-                  ? EmojiPicker(
-                onEmojiSelected: (category, emoji) {
-                  messageController.text += emoji.emoji;
-                  messageFocusNode.requestFocus();
-                },
-              )
-                  : Container(),
-              messageInputField(),
+              Expanded(child: _buildChatMessages()),
+              if (isEmojiVisible)
+                EmojiPicker(
+                  onEmojiSelected: (category, emoji) {
+                    messageController.text += emoji.emoji;
+                    messageFocusNode.requestFocus();
+                  },
+                ),
+              _buildMessageInput(),
             ],
           ),
-          if (isUploading)
-            Positioned(
-              bottom: 80,
-              left: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    LinearProgressIndicator(
-                      value: uploadProgress,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Constants().accentColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Uploading... ${(uploadProgress * 100).toStringAsFixed(1)}%',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          if (isUploading) _buildUploadProgressIndicator(),
         ],
       ),
     );
   }
 
-  Widget chatMessages() {
+  Widget _buildChatMessages() {
     return BlocBuilder<ChatBloc, ChatState>(
       builder: (context, state) {
         if (state is ChatLoading) {
@@ -286,96 +244,48 @@ class _ChatPageState extends State<ChatPage> {
               }
 
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollController.jumpTo(
-                  _scrollController.position.maxScrollExtent,
-                );
+                if (_scrollController.hasClients) {
+                  _scrollController.jumpTo(
+                    _scrollController.position.maxScrollExtent,
+                  );
+                }
               });
 
               return ListView.builder(
                 controller: _scrollController,
                 itemCount: snapshot.data.docs.length,
+                reverse: true,
                 padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 1),
                 itemBuilder: (context, index) {
-                  var messageData = snapshot.data.docs[index];
-                  String sender = messageData['sender'];
-                  String uid =
-                  sender.contains('_') ? sender.split('_')[0] : sender;
-                  String displayName = state.anonMap[uid] ?? "Admin";
-                  String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-                  bool sentByMe = sender.startsWith(currentUserId);
+                  final messageData = snapshot.data.docs[index];
+                  final sender = messageData['sender'];
+                  final uid = sender.contains('_') ? sender.split('_')[0] : sender;
+                  final displayName = state.anonMap[uid] ?? "Admin";
+                  final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+                  final sentByMe = sender.startsWith(currentUserId);
 
-                  DateTime messageDateTime =
-                  DateTime.fromMillisecondsSinceEpoch(messageData['time']);
-                  String formattedTime = DateFormat(
-                    'hh:mm a',
-                  ).format(messageDateTime);
+                  final messageDateTime = DateTime.fromMillisecondsSinceEpoch(
+                      messageData['time']);
+                  final formattedTime = DateFormat('hh:mm a').format(messageDateTime);
+                  final messageType = messageData['type'] ?? 'text';
+                  final message = messageData['message'];
 
-                  String messageType = messageData['type'] ?? 'text';
-                  String message = messageData['message'];
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (messageType == 'media')
-                        Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: message.contains('.mp4')
-                              ? VideoPlayerWidget(url: message)
-                              : Image.network(
-                            message,
-                            width: 250,
-                            height: 250,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (
-                                BuildContext context,
-                                Widget child,
-                                ImageChunkEvent? loadingProgress,
-                                ) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                width: 250,
-                                height: 250,
-                                color: Colors.grey[200],
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress
-                                        .expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (
-                                BuildContext context,
-                                Object error,
-                                StackTrace? stackTrace,
-                                ) {
-                              return Container(
-                                width: 250,
-                                height: 250,
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.broken_image,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      if (messageType == 'text')
-                        MessageTile(
-                          message: message,
-                          sender: displayName,
-                          sentByMe: sentByMe,
-                          time: formattedTime,
-                          messageType: messageType,
-                        ),
-                    ],
-                  );
+                  if (messageType == 'media') {
+                    return _buildMediaMessage(
+                      message,
+                      sentByMe,
+                      displayName,
+                      formattedTime,
+                    );
+                  } else {
+                    return MessageTile(
+                      message: message,
+                      sender: displayName,
+                      sentByMe: sentByMe,
+                      time: formattedTime,
+                      messageType: messageType,
+                    );
+                  }
                 },
               );
             },
@@ -393,7 +303,60 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget messageInputField() {
+  Widget _buildMediaMessage(
+      String getEndpointUrl,
+      bool sentByMe,
+      String senderName,
+      String time,
+      ) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _fetchMediaDetails(getEndpointUrl),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            child: const Icon(Icons.error, color: Colors.red),
+          );
+        }
+
+        final mediaPath = snapshot.data!['message'];
+        final mediaUrl = 'http://192.168.1.69:8000$mediaPath';
+        final isVideo = mediaPath.endsWith('.mp4');
+
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: isVideo
+              ? VideoPlayerWidget(url: mediaUrl)
+              : Image.network(
+            mediaUrl,
+            width: 150,
+            height: 150,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded /
+                      progress.expectedTotalBytes!
+                      : null,
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.broken_image);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
@@ -458,9 +421,7 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                       onTap: () {
                         if (isEmojiVisible) {
-                          setState(() {
-                            isEmojiVisible = false;
-                          });
+                          setState(() => isEmojiVisible = false);
                         }
                       },
                     ),
@@ -469,11 +430,7 @@ class _ChatPageState extends State<ChatPage> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            mediaPreview = '';
-                          });
-                        },
+                        onTap: () => setState(() => mediaPreview = ''),
                         child: Stack(
                           children: [
                             Container(
@@ -493,11 +450,7 @@ class _ChatPageState extends State<ChatPage> {
                               child: IconButton(
                                 icon: const Icon(Icons.close, size: 18),
                                 color: Colors.red,
-                                onPressed: () {
-                                  setState(() {
-                                    mediaPreview = '';
-                                  });
-                                },
+                                onPressed: () => setState(() => mediaPreview = ''),
                               ),
                             ),
                           ],
@@ -535,6 +488,37 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildUploadProgressIndicator() {
+    return Positioned(
+      bottom: 80,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            LinearProgressIndicator(
+              value: uploadProgress,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Constants().accentColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Uploading... ${(uploadProgress * 100).toStringAsFixed(1)}%',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   }
