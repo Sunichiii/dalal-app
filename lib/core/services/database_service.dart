@@ -293,7 +293,6 @@ class DatabaseService {
         });
       });
     } catch (e) {
-      print('Error updating old messages: $e');
     }
   }
   //helping function
@@ -312,26 +311,21 @@ class DatabaseService {
         Map<String, dynamic> updateData = {};
 
         if (!data.containsKey('time') || data['time'] == null) {
-          print('🛠 Fixing missing time for doc ${doc.id}');
           updateData['time'] = FieldValue.serverTimestamp();
           needsUpdate = true;
         }
 
         if (!data.containsKey('type') || data['type'] == null) {
-          print('🛠 Fixing missing type for doc ${doc.id}');
           updateData['type'] = 'text'; // Default type
           needsUpdate = true;
         }
 
         if (needsUpdate) {
           await doc.reference.update(updateData);
-          print('✅ Updated doc ${doc.id}');
         }
       }
 
-      print('🎉 Fix complete!');
     } catch (e) {
-      print('❌ Error while fixing messages: $e');
     }
   }
 

@@ -18,7 +18,6 @@ import 'package:groupie_v2/logic/auth/login/bloc/login_bloc.dart';
 import 'package:groupie_v2/logic/auth/login/login_page.dart';
 import 'package:groupie_v2/logic/auth/register/bloc/register_bloc.dart';
 
-import 'core/services/notification_services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -37,7 +37,6 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return e.message;
     } catch (e) {
-      print('Unexpected error: $e');
       return false;
     }
   }
@@ -69,7 +68,6 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return e.message;
     } catch (e) {
-      print('Unexpected error: $e');
       return false;
     }
   }
@@ -81,9 +79,8 @@ class AuthService {
       await HelperFunctions.saveUserEmailSF("");
       await HelperFunctions.saveUserNameSF("");
       await firebaseAuth.signOut();
-      print("User signed out successfully.");
     } catch (e) {
-      print("Error signing out: $e");
+
     }
   }
 }

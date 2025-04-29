@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:groupie_v2/core/shared/constants.dart';
 import 'package:groupie_v2/core/shared/textstyles.dart';
 
 class SecondOnboardScreen extends StatelessWidget {

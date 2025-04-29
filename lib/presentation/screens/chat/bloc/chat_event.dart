@@ -8,7 +8,7 @@ abstract class ChatEvent extends Equatable {
 
 class LoadChats extends ChatEvent {
   final String groupId;
-  LoadChats({required this.groupId});
+  LoadChats({required this.groupId, required String userName, required String message});
 
   @override
   List<Object?> get props => [groupId];

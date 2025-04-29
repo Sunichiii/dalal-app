@@ -223,7 +223,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Constants().backGroundColor,
-        title: const Text("Create a group", style: TextStyle(color: Colors.black)),
+        title: const Text("Create a group", style: TextStyle(color: Colors.white)),
         content: TextField(
           onChanged: (val) => newGroupName = val,
           style: const TextStyle(color: Colors.black),
