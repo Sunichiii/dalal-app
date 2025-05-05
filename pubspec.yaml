@@ -39,6 +39,21 @@ dependencies:
   firebase_auth: ^5.5.1
   firebase_core: ^3.12.1
   shared_preferences: ^2.5.2
+  equatable: ^2.0.7
+  flutter_bloc: ^9.1.0
+  intl: ^0.20.2
+  google_fonts: ^4.0.4
+  emoji_picker_flutter: ^4.3.0
+  firebase_storage: ^12.4.5
+  image_picker: ^1.1.2
+  lottie:
+  video_player: ^2.9.5
+  http: ^0.13.6
+  cached_network_image: ^3.3.1
+  url_launcher: ^6.3.1
+  chewie: ^1.11.3
+#  firebase_messaging: ^15.2.5
+#  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +81,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/lottie/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -79,10 +95,10 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
+  fonts:
+    - family: JetBrains
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
   #       - asset: fonts/Schyler-Italic.ttf
   #         style: italic
   #   - family: Trajan Pro
